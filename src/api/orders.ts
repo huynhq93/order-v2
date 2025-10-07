@@ -6,6 +6,8 @@ const api = axios.create({
 })
 
 export const getOrders = async (month: number, year: number) => {
+  console.log('getOrders');
+  console.log(import.meta.env.VITE_API_BASE_URL);
   const response = await api.get(`/sheets?type=ORDERS&month=${month}&year=${year}`)
   console.log(response.data.data)
   return response.data.data

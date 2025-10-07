@@ -17,15 +17,27 @@ const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
 router.get('/', async (req, res) => {
   try {
+    console.log('Environment check:');
+    console.log('GOOGLE_CLIENT_EMAIL:', process.env.GOOGLE_CLIENT_EMAIL ? 'Set' : 'Missing');
+    console.log('GOOGLE_PRIVATE_KEY:', process.env.GOOGLE_PRIVATE_KEY ? 'Set' : 'Missing');
+    console.log('GOOGLE_SHEET_ID:', process.env.GOOGLE_SHEET_ID ? 'Set' : 'Missing');
+    
     let date = new Date()
     if (req.query.year && req.query.month) {
       date = new Date(Number.parseInt(req.query.year), Number.parseInt(req.query.month) - 1, 1)
     }
+    console.log('Query params:', req.query);
+    console.log('Date:', date);
+    
     const result = await readSheet(SHEET_TYPES[req.query.type], date)
     res.json({data: result})
   } catch (err) {
-    console.error(err)
-    res.status(500).send('Google Sheet Error')
+    console.error('Detailed error:', err);
+    res.status(500).json({ 
+      error: 'Google Sheet Error',
+      message: err.message,
+      stack: err.stack
+    });
   }
 })
 
