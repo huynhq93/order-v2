@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "googleapis": "^148.0.0",
+    "cloudinary": "^2.6.1"
+  }
+}
