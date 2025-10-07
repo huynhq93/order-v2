@@ -5,12 +5,19 @@ const api = axios.create({
 })
 
 export const uploadImage = async (imageFile: File) => {
-  const formData = new FormData();
-  formData.append("file", imageFile);
+  // Convert file to base64
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(imageFile);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+  });
 
-  const res = await api.post('/images/upload', formData, {
+  const res = await api.post('/images', {
+    file: base64
+  }, {
     headers: {
-      'Content-Type': 'multipart/form-data',
+      'Content-Type': 'application/json',
     },
   })
   return res.data.url

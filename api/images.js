@@ -33,16 +33,14 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'No file provided' });
       }
 
-      // Upload to Cloudinary
+      // file should be base64 string from frontend
       const result = await cloudinary.uploader.upload(file, {
         folder: 'orders',
         resource_type: 'auto'
       });
 
       res.status(200).json({
-        success: true,
-        url: result.secure_url,
-        public_id: result.public_id
+        url: result.secure_url
       });
     } catch (error) {
       console.error('Upload error:', error);
