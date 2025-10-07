@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps<{
   modelValue: { month: number; year: number }
@@ -66,11 +66,19 @@ const years = computed(() => {
 const selectedMonth = ref(props.modelValue.month)
 const selectedYear = ref(props.modelValue.year)
 
+// Watch for prop changes and sync local state
+watch(() => props.modelValue, (newValue) => {
+  selectedMonth.value = newValue.month
+  selectedYear.value = newValue.year
+}, { immediate: true, deep: true })
+
 const handleMonthChange = (value: number) => {
+  selectedMonth.value = value
   emit('update:modelValue', { month: value, year: selectedYear.value })
 }
 
 const handleYearChange = (value: number) => {
+  selectedYear.value = value
   emit('update:modelValue', { month: selectedMonth.value, year: value })
 }
 </script> 

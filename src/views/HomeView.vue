@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useOrdersStore } from '@/stores/orders'
 import OrdersTable from '@/components/OrdersTable.vue'
 import MonthSelector from '@/components/MonthSelector.vue'
@@ -34,6 +34,11 @@ const selectedDate = ref({
 onMounted(async () => {
   await fetchOrders()
 })
+
+// Watch for selectedDate changes and fetch new data
+watch(selectedDate, async () => {
+  await fetchOrders()
+}, { deep: true })
 
 const fetchOrders = async () => {
   loading.value = true

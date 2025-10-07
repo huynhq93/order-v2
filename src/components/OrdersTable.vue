@@ -7,7 +7,8 @@
         <div class="mb-4 flex items-center gap-4">
           <!-- Filter by Customer -->
           <el-select
-            v-model="filters.customerName"
+            :model-value="filters.customerName"
+            @update:model-value="updateCustomerFilter"
             placeholder="Chọn khách hàng"
             clearable
             class="w-100!"
@@ -22,7 +23,8 @@
 
           <!-- Filter by Status -->
           <el-select
-            v-model="filters.statuses"
+            :model-value="filters.statuses"
+            @update:model-value="updateStatusFilter"
             multiple
             placeholder="Chọn trạng thái"
             collapse-tags
@@ -46,9 +48,11 @@
     <div class="relative">
       <el-table
         :data="filteredOrders"
+        :key="`table-${filters.customerName}-${filters.statuses.join(',')}`"
         style="width: 100%"
         height="450"
         v-loading="loading"
+        row-key="rowIndex"
       >
         <el-table-column prop="date" label="DATE" />
         <el-table-column prop="customerName" label="TÊN KH" min-width="200">
@@ -134,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, shallowRef } from 'vue'
 import { useOrdersStore } from '@/stores/orders'
 import { formatCurrency } from '@/utils/format'
 import type { Order } from '@/types/order'
@@ -151,7 +155,9 @@ const showAddDialog = ref(false)
 const showDetailsDialog = ref(false)
 const selectedOrder = ref<Order | null>(null)
 const statusUpdating = ref<Record<number, boolean>>({})
-  const filters = ref({
+
+// Use shallowRef for better performance on filter changes
+const filters = shallowRef({
   customerName: '',
   statuses: ['ĐANG CHỜ GIAO', 'ĐANG GIAO'] as string[],
 })
@@ -165,25 +171,48 @@ const statusOptions = [
   'Hủy',
 ]
 
+// Optimized computed for unique customer names with memoization
 const uniqueCustomerNames = computed(() => {
-  const names = orders.value.map(o => o.customerName)
-  return [...new Set(names)]
+  const ordersData = orders.value
+  if (!ordersData.length) return []
+  
+  const names = new Set<string>()
+  for (const order of ordersData) {
+    if (order.customerName) {
+      names.add(order.customerName)
+    }
+  }
+  return Array.from(names).sort()
 })
 
 const orders = computed(() => store.orders)
 const loading = computed(() => store.loading)
 
+// Optimized filtering with early returns and reduced iterations
 const filteredOrders = computed(() => {
-  return orders.value.filter((order) => {
-    const matchesCustomer =
-      !filters.value.customerName ||
-      order.customerName === filters.value.customerName
-
-    const matchesStatus =
-      filters.value.statuses.length === 0 ||
-      filters.value.statuses.includes(order.status)
-
-    return matchesCustomer && matchesStatus
+  const ordersData = orders.value
+  if (!ordersData.length) return []
+  
+  const { customerName, statuses } = filters.value
+  
+  // If no filters applied, return all orders
+  if (!customerName && statuses.length === 0) {
+    return ordersData
+  }
+  
+  // Use a single pass filter with early returns
+  return ordersData.filter((order) => {
+    // Check customer name first (usually more selective)
+    if (customerName && order.customerName !== customerName) {
+      return false
+    }
+    
+    // Check status
+    if (statuses.length > 0 && !statuses.includes(order.status)) {
+      return false
+    }
+    
+    return true
   })
 })
 
@@ -202,21 +231,28 @@ const getStatusColor = (status: string) => {
   }
 }
 
+// Optimized filter update functions
+const updateCustomerFilter = (customerName: string) => {
+  filters.value = { ...filters.value, customerName }
+}
+
+const updateStatusFilter = (statuses: string[]) => {
+  filters.value = { ...filters.value, statuses }
+}
+
 const handleStatusChange = async (rowIndex: number, newStatus: string) => {
   statusUpdating.value[rowIndex] = true
   try {
     await store.updateOrderStatus(rowIndex, newStatus, props.selectedDate)
     ElMessage.success('Đã cập nhật trạng thái đơn hàng')
-  } catch (error) {
+  } catch {
     ElMessage.error('Không thể cập nhật trạng thái')
   } finally {
     statusUpdating.value[rowIndex] = false
   }
 }
 
-const handleOrderAdded = async (newOrder: Order) => {
-  // await store.addOrder(newOrder)
-  // orders.value.push(newOrder)
+const handleOrderAdded = async () => {
   showAddDialog.value = false
   ElMessage.success('Đã thêm đơn hàng mới')
 }
