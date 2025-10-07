@@ -151,7 +151,9 @@
     <el-dialog
       v-model="showAddDialog"
       title="Thêm đơn hàng mới"
-      width="600px"
+      :width="addOrderDialogWidth"
+      :close-on-click-modal="false"
+      :class="{ 'mobile-dialog': isMobile, 'add-order-dialog': true }"
     >
       <add-order-form
         :selected-date="selectedDate"
@@ -217,7 +219,13 @@ const isMobile = computed(() => windowWidth.value <= 768)
 const dialogWidth = computed(() => {
   if (windowWidth.value <= 480) return '95vw'
   if (windowWidth.value <= 768) return '90vw'
-  return '800px'
+  return '1000px'
+})
+
+const addOrderDialogWidth = computed(() => {
+  if (windowWidth.value <= 480) return '95vw'
+  if (windowWidth.value <= 768) return '90vw'
+  return '1200px'
 })
 
 // Use shallowRef for better performance on filter changes
@@ -426,6 +434,7 @@ const showOrderDetails = (order: Order) => {
   
   :deep(.el-dialog__header) {
     padding: 15px 15px 10px !important;
+    text-align: center !important;
   }
   
   :deep(.el-dialog__body) {
@@ -434,6 +443,7 @@ const showOrderDetails = (order: Order) => {
   
   :deep(.el-dialog__title) {
     font-size: 1.1rem !important;
+    font-weight: bold !important;
   }
 }
 
@@ -444,6 +454,7 @@ const showOrderDetails = (order: Order) => {
   
   :deep(.el-dialog__header) {
     padding: 12px 12px 8px !important;
+    text-align: center !important;
   }
   
   :deep(.el-dialog__body) {
@@ -452,6 +463,52 @@ const showOrderDetails = (order: Order) => {
   
   :deep(.el-dialog__title) {
     font-size: 1rem !important;
+    font-weight: bold !important;
+  }
+}
+
+/* Desktop dialog styling */
+:deep(.el-dialog__header) {
+  text-align: center !important;
+}
+
+:deep(.el-dialog__title) {
+  font-weight: bold !important;
+}
+
+/* Desktop dialog height optimization */
+:deep(.el-dialog) {
+  max-height: 120vh !important;
+  margin: 2vh auto !important;
+}
+
+:deep(.el-dialog__body) {
+  max-height: calc(120vh - 120px) !important;
+  overflow-y: auto !important;
+}
+
+/* Add Order Dialog specific styling */
+:deep(.add-order-dialog .el-dialog) {
+  max-height: 95vh !important;
+  margin: 2.5vh auto !important;
+}
+
+:deep(.add-order-dialog .el-dialog__body) {
+  max-height: calc(95vh - 120px) !important;
+  overflow-y: auto !important;
+  padding: 0 !important;
+}
+
+/* Mobile styling for Add Order Dialog */
+@media (max-width: 768px) {
+  :deep(.add-order-dialog.mobile-dialog .el-dialog) {
+    margin: 5vh auto !important;
+    max-height: 90vh !important;
+  }
+  
+  :deep(.add-order-dialog.mobile-dialog .el-dialog__body) {
+    max-height: calc(90vh - 100px) !important;
+    padding: 0 !important;
   }
 }
 </style> 

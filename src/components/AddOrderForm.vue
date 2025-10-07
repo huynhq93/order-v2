@@ -1,103 +1,196 @@
 <template>
-  <el-form
-    ref="formRef"
-    :model="form"
-    :rules="rules"
-    label-position="top"
-    class="space-y-4"
-  >
-    <div class="grid grid-cols-2 gap-4">
-      <el-form-item label="Ngày" prop="date">
-        <el-date-picker
-          v-model="form.date"
-          type="date"
-          placeholder="Chọn ngày"
-          format="DD/MM/YYYY"
-          value-format="YYYY/MM/DD"
-        />
-      </el-form-item>
-
-      <el-form-item  label="Ảnh sản phẩm">
-        <div class="space-y-2 w-full">
-          <div class="flex items-center gap-2">
-            <div v-if="imagePreview" class="border rounded w-[100px] h-[100px] overflow-hidden">
-              <img :src="imagePreview" alt="Preview" class="object-cover w-full h-full" />
+  <div class="add-order-form">
+    <!-- Header with Image -->
+    <div class="form-header">
+      <div class="product-image-section">
+        <div class="image-upload">
+          <div v-if="imagePreview" class="image-preview">
+            <img :src="imagePreview" alt="Preview" class="product-image" />
+            <div class="image-overlay">
+              <el-button
+                size="small"
+                type="primary"
+                circle
+                @click="triggerImageUpload"
+                :icon="EditPen"
+              />
             </div>
-      
-            <el-button
-              @click="() => imageInput?.click()"
-              type="primary"
-              plain
-            >
-              Tải ảnh lên
+          </div>
+          <div v-else class="upload-placeholder">
+            <el-icon size="24" color="#ddd"><Picture /></el-icon>
+            <el-button type="primary" plain @click="triggerImageUpload" size="small">
+              Thêm ảnh
             </el-button>
-      
-            <input
-              ref="imageInput"
-              type="file"
-              accept="image/*"
-              class="hidden"
-              @change="handleFileChange"
-            />
+          </div>
+          <input
+            ref="imageInput"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="onImageSelect"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      label-position="top"
+    >
+      <div class="content-grid">
+        <!-- Left Column -->
+        <div class="left-column">
+          <!-- Basic Info Section -->
+          <div class="info-section">
+            <h3 class="section-title">Thông tin cơ bản</h3>
+            
+            <div class="field-row">
+              <div class="field-item">
+                <el-form-item label="Ngày đặt hàng" prop="date">
+                  <el-date-picker
+                    v-model="form.date"
+                    type="date"
+                    placeholder="Chọn ngày"
+                    format="DD/MM/YYYY"
+                    value-format="YYYY/MM/DD"
+                    class="w-full"
+                  />
+                </el-form-item>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-item">
+                <el-form-item label="Tên khách hàng" prop="customerName">
+                  <el-input v-model="form.customerName" placeholder="Nhập tên khách hàng" />
+                </el-form-item>
+              </div>
+            </div>
+          </div>
+
+          <!-- Product Info Section -->
+          <div class="info-section">
+            <h3 class="section-title">Thông tin sản phẩm</h3>
+            
+            <div class="field-row">
+              <div class="field-item">
+                <el-form-item label="Tên sản phẩm" prop="productName">
+                  <el-input v-model="form.productName" placeholder="Nhập tên sản phẩm" />
+                </el-form-item>
+              </div>
+            </div>
+
+            <div class="field-row two-cols">
+              <div class="field-item">
+                <el-form-item label="Màu sắc" prop="color">
+                  <el-input v-model="form.color" placeholder="Màu sắc" />
+                </el-form-item>
+              </div>
+              
+              <div class="field-item">
+                <el-form-item label="Kích thước" prop="size">
+                  <el-input v-model="form.size" placeholder="Size" />
+                </el-form-item>
+              </div>
+            </div>
+
+            <div class="field-row two-cols">
+              <div class="field-item">
+                <el-form-item label="Số lượng" prop="quantity">
+                  <el-input-number
+                    v-model.number="form.quantity"
+                    :min="1"
+                    class="w-full"
+                  />
+                </el-form-item>
+              </div>
+              
+              <div class="field-item">
+                <el-form-item label="Đơn giá" prop="total">
+                  <el-input v-model="form.total" placeholder="Đơn giá">
+                    <template #suffix>VNĐ</template>
+                  </el-input>
+                </el-form-item>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-item">
+                <el-form-item label="Trạng thái" prop="status">
+                  <el-select v-model="form.status" placeholder="Chọn trạng thái" class="w-full">
+                    <el-option label="NHẬN ĐƠN" value="NHẬN ĐƠN" />
+                    <el-option label="ĐANG GIAO" value="ĐANG GIAO" />
+                    <el-option label="ĐANG CHỜ GIAO" value="ĐANG CHỜ GIAO" />
+                    <el-option label="HOÀN THÀNH" value="HOÀN THÀNH" />
+                    <el-option label="HUỶ" value="Hủy" />
+                  </el-select>
+                </el-form-item>
+              </div>
+            </div>
           </div>
         </div>
-      </el-form-item>
 
-      <el-form-item label="Tên khách hàng" prop="customerName">
-        <el-input v-model="form.customerName" />
-      </el-form-item>
+        <!-- Right Column -->
+        <div class="right-column">
+          <div class="info-section">
+            <h3 class="section-title">Thông tin liên hệ</h3>
+            
+            <div class="field-row">
+              <div class="field-item">
+                <el-form-item label="Link Facebook" prop="linkFb">
+                  <el-input v-model="form.linkFb" placeholder="Nhập link Facebook" />
+                </el-form-item>
+              </div>
+            </div>
 
-      <el-form-item label="Sản phẩm" prop="productName">
-        <el-input v-model="form.productName" />
-      </el-form-item>
+            <div class="field-row">
+              <div class="field-item">
+                <el-form-item label="SĐT + Địa chỉ" prop="contactInfo">
+                  <el-input
+                    v-model="form.contactInfo"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="Nhập số điện thoại và địa chỉ"
+                  />
+                </el-form-item>
+              </div>
+            </div>
 
-      <el-form-item label="Màu sắc" prop="color">
-        <el-input v-model="form.color" />
-      </el-form-item>
+            <div class="field-row">
+              <div class="field-item">
+                <el-form-item label="Ghi chú" prop="note">
+                  <el-input
+                    v-model="form.note"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="Nhập ghi chú (nếu có)"
+                  />
+                </el-form-item>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <el-form-item label="Size" prop="size">
-        <el-input v-model="form.size" />
-      </el-form-item>
-
-      <el-form-item label="Số lượng" prop="quantity">
-        <el-input v-model="form.quantity" />
-      </el-form-item>
-
-      <el-form-item label="Tổng tiền" prop="total">
-        <el-input v-model="form.total" />
-      </el-form-item>
-
-      <el-form-item label="Trạng thái" prop="status">
-        <el-select v-model="form.status">
-          <el-option label="NHẬN ĐƠN" value="NHẬN ĐƠN" />
-          <el-option label="ĐANG GIAO" value="ĐANG GIAO" />
-          <el-option label="ĐANG CHỜ GIAO" value="ĐANG CHỜ GIAO" />
-          <el-option label="HUỶ" value="Hủy" />
-        </el-select>
-      </el-form-item>
-
-      <el-form-item label="Link Facebook" prop="linkFb">
-        <el-input v-model="form.linkFb" />
-      </el-form-item>
-
-      <el-form-item label="SĐT/Địa chỉ" prop="contactInfo">
-        <el-input v-model="form.contactInfo" />
-      </el-form-item>
-    </div>
-
-    <el-form-item label="Ghi chú" prop="note">
-      <el-input
-        v-model="form.note"
-        type="textarea"
-        rows="3"
-      />
-    </el-form-item>
-
-    <div class="flex justify-end space-x-2">
-      <el-button @click="$emit('cancel')">Hủy</el-button>
-      <el-button type="primary" @click="handleSubmit">Thêm đơn hàng</el-button>
-    </div>
-  </el-form>
+      <!-- Footer Actions -->
+      <div class="footer-actions">
+        <el-button @click="handleCancel" size="large">
+          Hủy bỏ
+        </el-button>
+        <el-button 
+          type="primary" 
+          @click="handleSubmit" 
+          size="large"
+          :loading="submitting"
+        >
+          {{ submitting ? 'Đang lưu...' : 'Thêm đơn hàng' }}
+        </el-button>
+      </div>
+    </el-form>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -107,6 +200,10 @@ import type { Order } from '@/types/order'
 import { ElMessage } from 'element-plus'
 import { useOrdersStore } from '@/stores/orders'
 import { uploadImage } from '@/api/images'
+import { 
+  EditPen, 
+  Picture
+} from '@element-plus/icons-vue'
 
 const emit = defineEmits<{
   (e: 'submit', order: Omit<Order, 'rowIndex'>): void
@@ -118,6 +215,7 @@ const orderStore = useOrdersStore()
 
 const formRef = ref<FormInstance>()
 const imageInput = ref<HTMLInputElement>()
+const submitting = ref(false)
 const form = ref({
   date: '',
   customerName: '',
@@ -148,41 +246,409 @@ const rules: FormRules = {
   contactInfo: [{ required: true, message: 'Vui lòng nhập SĐT/Địa chỉ', trigger: 'blur' }]
 }
 
-const handleFileChange = (e: Event) => {
-  const target = e.target as HTMLInputElement
-  file.value = target.files?.[0]
-  if (!file.value) return
+// Image handling functions
+const triggerImageUpload = () => {
+  imageInput.value?.click()
+}
 
-  const reader = new FileReader()
-  reader.onload = () => {
-    imagePreview.value = reader.result as string
+const onImageSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files[0]) {
+    file.value = target.files[0]
+    
+    // Create preview URL
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      imagePreview.value = e.target?.result as string
+    }
+    reader.readAsDataURL(file.value)
   }
-  reader.readAsDataURL(file.value)
+}
 
+const compressImage = (file: File): Promise<File> => {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')!
+    const img = new Image()
+    
+    img.onload = () => {
+      const MAX_WIDTH = 800
+      const MAX_HEIGHT = 800
+      
+      let { width, height } = img
+      
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height = (height * MAX_WIDTH) / width
+          width = MAX_WIDTH
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width = (width * MAX_HEIGHT) / height
+          height = MAX_HEIGHT
+        }
+      }
+      
+      canvas.width = width
+      canvas.height = height
+      
+      ctx.drawImage(img, 0, 0, width, height)
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const compressedFile = new File([blob], file.name, {
+            type: 'image/jpeg',
+            lastModified: Date.now(),
+          })
+          resolve(compressedFile)
+        }
+      }, 'image/jpeg', 0.8)
+    }
+    
+    img.src = URL.createObjectURL(file)
+  })
+}
+
+const handleFileChange = (e: Event) => {
+  onImageSelect(e)
 }
 
 const handleSubmit = async () => {
   if (!formRef.value) return
-
-  await formRef.value.validate(async (valid) => {
-    if (valid) {
-      if (!file.value) {
-        ElMessage.success("Vui lòng chọn ảnh trước khi submit.")
+  
+  try {
+    const valid = await formRef.value.validate()
+    if (!valid) return
+    
+    submitting.value = true
+    
+    let imageUrl = ''
+    if (file.value) {
+      try {
+        // Check file size (5MB limit)
+        if (file.value.size > 5 * 1024 * 1024) {
+          ElMessage.error('File size must be less than 5MB')
+          return
+        }
+        
+        // Compress image
+        const compressedFile = await compressImage(file.value)
+        
+        // Upload image
+        const uploadResponse = await uploadImage(compressedFile)
+        if (uploadResponse?.data?.secure_url) {
+          imageUrl = uploadResponse.data.secure_url
+        } else if (typeof uploadResponse === 'string') {
+          imageUrl = uploadResponse
+        }
+      } catch (error) {
+        console.error('Image upload failed:', error)
+        ElMessage.error('Failed to upload image')
         return
       }
-
-      const imageUrl = await uploadImage(file.value)
-      form.value.productImage = imageUrl
-      await orderStore.addOrder(form.value)
-      emit('order-added')
-      ElMessage.success('Đã thêm đơn hàng mới')
     }
-  })
+    
+    const orderData = {
+      ...form.value,
+      productImage: imageUrl || form.value.productImage
+    }
+    
+    await orderStore.addOrder(orderData)
+    ElMessage.success('Thêm đơn hàng thành công!')
+    emit('order-added')
+    resetForm()
+  } catch (error) {
+    console.error('Error adding order:', error)
+    ElMessage.error('Có lỗi xảy ra khi thêm đơn hàng')
+  } finally {
+    submitting.value = false
+  }
+}
+
+const resetForm = () => {
+  formRef.value?.resetFields()
+  imagePreview.value = ''
+  file.value = undefined
+  form.value = {
+    date: '',
+    customerName: '',
+    productName: '',
+    productImage: '',
+    color: '',
+    size: '',
+    quantity: '1',
+    total: '',
+    status: 'NHẬN ĐƠN' as const,
+    linkFb: '',
+    contactInfo: '',
+    note: ''
+  }
+}
+
+const handleCancel = () => {
+  resetForm()
+  emit('cancel')
 }
 </script>
 
 <style scoped>
-.el-select {
+.add-order-form {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Header Section */
+.form-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 24px;
+  text-align: center;
+}
+
+.product-image-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.image-upload {
+  position: relative;
+}
+
+.image-preview {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.product-image {
   width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.image-preview:hover .image-overlay {
+  opacity: 1;
+}
+
+.upload-placeholder {
+  width: 120px;
+  height: 120px;
+  border: 2px dashed rgba(255,255,255,0.3);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.upload-placeholder:hover {
+  border-color: rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.1);
+}
+
+.hidden {
+  display: none;
+}
+
+/* Content Grid */
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  padding: 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.left-column,
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Info Sections */
+.info-section {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+/* Field Styling */
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.field-row:last-child {
+  margin-bottom: 0;
+}
+
+.field-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.field-row .field-item:only-child {
+  grid-column: 1 / -1;
+}
+
+/* Form Styling */
+:deep(.el-form-item__label) {
+  font-weight: 600 !important;
+  color: #374151 !important;
+  font-size: 14px !important;
+  margin-bottom: 6px !important;
+}
+
+:deep(.el-input__wrapper) {
+  border-radius: 8px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+  border: 1px solid #d1d5db !important;
+}
+
+:deep(.el-input__wrapper:hover) {
+  border-color: #6366f1 !important;
+}
+
+:deep(.el-input__wrapper.is-focus) {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+}
+
+:deep(.el-textarea__inner) {
+  border-radius: 8px !important;
+  border: 1px solid #d1d5db !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+}
+
+:deep(.el-select .el-input__wrapper) {
+  border-radius: 8px !important;
+}
+
+/* Mobile button fix */
+@media (max-width: 768px) {
+  :deep(.footer-actions .el-button) {
+    margin: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+}
+
+/* Footer Actions */
+.footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 24px 32px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 16px;
+    max-width: 100%;
+  }
+  
+  .field-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .footer-actions {
+    padding: 16px;
+    flex-direction: column-reverse;
+    margin: 0 auto;
+    box-sizing: border-box;
+    max-width: calc(100% - 32px);
+  }
+  
+  .footer-actions .el-button {
+    width: 100%;
+    margin: 0 !important;
+    box-sizing: border-box;
+  }
+  
+  .form-header {
+    padding: 16px;
+  }
+  
+  .image-preview,
+  .upload-placeholder {
+    width: 80px;
+    height: 80px;
+  }
+  
+  .info-section {
+    padding: 12px;
+    margin: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .content-grid {
+    padding: 12px;
+  }
+  
+  .info-section {
+    padding: 12px;
+  }
+  
+  .section-title {
+    font-size: 14px;
+  }
+  
+  .field-row {
+    gap: 8px;
+  }
+  
+  .footer-actions {
+    padding: 12px;
+    margin: 0 auto;
+    max-width: calc(100% - 24px);
+  }
+  
+  .footer-actions .el-button {
+    margin: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
 }
 </style> 

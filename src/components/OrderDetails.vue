@@ -330,12 +330,58 @@ const handleImageChange = (event: Event) => {
   const file = target.files?.[0]
   
   if (file) {
-    imageFile.value = file
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      imagePreview.value = e.target?.result as string
+    // Check file size (limit to 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      ElMessage.error('File ảnh quá lớn. Vui lòng chọn file nhỏ hơn 5MB.')
+      return
     }
-    reader.readAsDataURL(file)
+
+    // Compress image before upload
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const img = new Image()
+    
+    img.onload = () => {
+      // Calculate new dimensions (max 800px)
+      const maxSize = 800
+      let { width, height } = img
+      
+      if (width > height) {
+        if (width > maxSize) {
+          height = (height * maxSize) / width
+          width = maxSize
+        }
+      } else {
+        if (height > maxSize) {
+          width = (width * maxSize) / height
+          height = maxSize
+        }
+      }
+      
+      // Draw resized image
+      canvas.width = width
+      canvas.height = height
+      ctx?.drawImage(img, 0, 0, width, height)
+      
+      // Convert to blob with compression
+      canvas.toBlob((blob) => {
+        if (blob) {
+          imageFile.value = new File([blob], file.name, {
+            type: 'image/jpeg',
+            lastModified: Date.now()
+          })
+          
+          // Create preview
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            imagePreview.value = e.target?.result as string
+          }
+          reader.readAsDataURL(blob)
+        }
+      }, 'image/jpeg', 0.8) // 80% quality
+    }
+    
+    img.src = URL.createObjectURL(file)
   }
 }
 
@@ -498,7 +544,7 @@ const saveChanges = async () => {
 
 .section-title {
   font-size: 1.1rem;
-  font-weight: bold;
+  font-weight: 1200;
   color: #111827;
   margin-bottom: 12px;
   padding-bottom: 6px;
@@ -534,13 +580,13 @@ const saveChanges = async () => {
 .field-label {
   display: block;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: bold;
   color: #374151;
 }
 
 .field-value {
   font-size: 0.95rem;
-  color: #111827;
+  color: #6b7280;
   padding: 6px 0;
   min-height: 32px;
   display: flex;
@@ -747,10 +793,12 @@ const saveChanges = async () => {
   
   .field-label {
     font-size: 0.8rem;
+    font-weight: bold;
   }
   
   .field-value {
     font-size: 0.85rem;
+    color: #6b7280;
     padding: 4px 0;
     min-height: 28px;
   }
@@ -764,6 +812,15 @@ const saveChanges = async () => {
   .footer-actions {
     padding-top: 12px;
     gap: 8px;
+    margin: 0;
+    box-sizing: border-box;
+  }
+  
+  :deep(.footer-actions .el-button) {
+    margin: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box;
   }
   
   .upload-placeholder,
@@ -844,10 +901,12 @@ const saveChanges = async () => {
   
   .field-label {
     font-size: 0.75rem;
+    font-weight: bold;
   }
   
   .field-value {
     font-size: 0.8rem;
+    color: #6b7280;
     padding: 3px 0;
     min-height: 24px;
   }
@@ -862,6 +921,16 @@ const saveChanges = async () => {
     padding-top: 10px;
     flex-direction: column;
     gap: 6px;
+    margin: 0;
+    box-sizing: border-box;
+  }
+  
+  :deep(.footer-actions .el-button) {
+    margin: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100%;
+    box-sizing: border-box;
   }
   
   .upload-placeholder,

@@ -62,7 +62,7 @@ router.post('/', async (req, res) => {
     const dateObj = date ? new Date(date) : new Date()
 
     const result = await readSheet(SHEET_TYPES[req.query.type], dateObj)
-    let nextRow = result.length + 1
+    let nextRow = result.length + 4
     nextRow = Math.max(nextRow, 4)
 
     const sheetName = getMonthlySheetName(SHEET_TYPES[req.query.type], dateObj)
