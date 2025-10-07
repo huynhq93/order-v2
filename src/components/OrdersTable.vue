@@ -14,6 +14,16 @@
             :loading="isFiltering"
             class="w-100!"
           >
+            <template #prefix>
+              <el-icon v-if="isFiltering">
+                <Loading />
+              </el-icon>
+            </template>
+            <el-option
+              key="all"
+              label="Tất cả"
+              value=""
+            />
             <el-option
               v-for="name in uniqueCustomerNames"
               :key="name"
@@ -49,13 +59,15 @@
 
     <div class="relative">
       <el-table
+        ref="tableRef"
         :data="filteredOrders"
-        :key="`table-infinity-${displayCount}`"
         style="width: 100%"
-        height="450"
+        height="600"
         v-loading="loading"
         row-key="rowIndex"
         :show-overflow-tooltip="true"
+        :virtualized="filteredOrders.length > 100"
+        :estimated-row-height="60"
       >
         <el-table-column prop="date" label="DATE" />
         <el-table-column prop="customerName" label="TÊN KH" min-width="200">
@@ -71,6 +83,8 @@
               :preview-src-list="[row.productImage]"
               fit="cover"
               class="w-10 h-10 rounded"
+              lazy
+              loading="lazy"
             />
           </template>
         </el-table-column>
@@ -111,31 +125,25 @@
         </el-table-column>
       </el-table>
       
-      <!-- Infinity Loading Indicator -->
-      <div class="flex flex-col items-center mt-4">
-        <div class="text-sm text-gray-500 mb-2">
-          Hiển thị {{ filteredOrders.length }} trong tổng số {{ totalItems }} đơn hàng
+      <!-- Pagination -->
+      <div class="flex justify-between items-center mt-4">
+        <div class="text-sm text-gray-500 flex items-center gap-2">
+          <span>Hiển thị {{ filteredOrders.length }} trong {{ totalCount }} đơn hàng</span>
+          <el-icon v-if="pageChanging" class="is-loading">
+            <Loading />
+          </el-icon>
         </div>
         
-        <!-- Load More Button -->
-        <div v-if="hasMoreItems" class="flex items-center space-x-2">
-          <el-button 
-            @click="loadMore"
-            :loading="loadingMore"
-            type="primary"
-            plain
-          >
-            {{ loadingMore ? 'Đang tải...' : `Tải thêm ${Math.min(loadIncrement, totalItems - displayCount)} đơn hàng` }}
-          </el-button>
-          <span class="text-xs text-gray-400">
-            hoặc cuộn xuống để tự động tải
-          </span>
-        </div>
-        
-        <!-- All loaded message -->
-        <div v-else-if="totalItems > 0" class="text-sm text-green-600">
-          ✓ Đã tải tất cả đơn hàng
-        </div>
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[25, 50, 100, 200, 500, 1000]"
+          :total="totalCount"
+          layout="sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handlePageChange"
+          :disabled="pageChanging"
+        />
       </div>
     </div>
 
@@ -155,8 +163,10 @@
     <!-- Order Details Dialog -->
     <el-dialog
       v-model="showDetailsDialog"
-      title="Chi tiết đơn hàng"
-      width="600px"
+      :title="`CHI TIẾT ĐƠN HÀNG - ${selectedOrder?.customerName || 'Không xác định'}`"
+      :width="dialogWidth"
+      :close-on-click-modal="false"
+      :class="{ 'mobile-dialog': isMobile }"
     >
       <order-details
         v-if="selectedOrder"
@@ -168,13 +178,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, shallowRef } from 'vue'
+import { ref, computed, shallowRef, onUnmounted, onMounted, onBeforeUnmount } from 'vue'
 import { useOrdersStore } from '@/stores/orders'
 import { formatCurrency } from '@/utils/format'
 import type { Order } from '@/types/order'
 import AddOrderForm from './AddOrderForm.vue'
 import OrderDetails from './OrderDetails.vue'
 import { ElMessage } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   selectedDate: { month: number; year: number }
@@ -186,16 +197,39 @@ const showDetailsDialog = ref(false)
 const selectedOrder = ref<Order | null>(null)
 const statusUpdating = ref<Record<number, boolean>>({})
 
-// Infinity loading state
-const displayCount = ref(50) // Start with 50 items
-const loadingMore = ref(false)
-const loadIncrement = 25 // Load 25 more items each time
+// Responsive dialog
+const windowWidth = ref(window.innerWidth)
+
+const updateWindowWidth = () => {
+  windowWidth.value = window.innerWidth
+}
+
+onMounted(() => {
+  window.addEventListener('resize', updateWindowWidth)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateWindowWidth)
+})
+
+const isMobile = computed(() => windowWidth.value <= 768)
+
+const dialogWidth = computed(() => {
+  if (windowWidth.value <= 480) return '95vw'
+  if (windowWidth.value <= 768) return '90vw'
+  return '800px'
+})
 
 // Use shallowRef for better performance on filter changes
 const filters = shallowRef({
   customerName: '',
   statuses: ['ĐANG CHỜ GIAO', 'ĐANG GIAO'] as string[],
 })
+
+// Pagination state
+const currentPage = ref(1)
+const pageSize = ref(50) // 50 items per page
+const pageChanging = ref(false) // Loading state for page changes
 
 // Debouncing state
 const filterTimeout = ref<number | null>(null)
@@ -225,7 +259,7 @@ const uniqueCustomerNames = computed(() => {
 })
 
 const orders = computed(() => store.orders)
-const loading = computed(() => store.loading || isFiltering.value)
+const loading = computed(() => store.loading || isFiltering.value || pageChanging.value)
 
 // Fast pre-filtered orders (without pagination)
 const preFilteredOrders = computed(() => {
@@ -260,19 +294,16 @@ const preFilteredOrders = computed(() => {
   return filtered
 })
 
-// Total items for display info
-const totalItems = computed(() => preFilteredOrders.value.length)
-
-// Displayed orders with infinity loading
+// Displayed orders với pagination
 const filteredOrders = computed(() => {
   const filtered = preFilteredOrders.value
-  return filtered.slice(0, displayCount.value)
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filtered.slice(start, end)
 })
 
-// Check if there are more items to load
-const hasMoreItems = computed(() => {
-  return displayCount.value < preFilteredOrders.value.length
-})
+// Total count
+const totalCount = computed(() => preFilteredOrders.value.length)
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -298,7 +329,7 @@ const updateCustomerFilter = (customerName: string) => {
   isFiltering.value = true
   filterTimeout.value = window.setTimeout(() => {
     filters.value = { ...filters.value, customerName }
-    displayCount.value = 50 // Reset display count when filter changes
+    resetFilters() // Reset to page 1
     isFiltering.value = false
   }, 300) // 300ms debounce
 }
@@ -311,23 +342,39 @@ const updateStatusFilter = (statuses: string[]) => {
   isFiltering.value = true
   filterTimeout.value = window.setTimeout(() => {
     filters.value = { ...filters.value, statuses }
-    displayCount.value = 50 // Reset display count when filter changes
+    resetFilters() // Reset to page 1
     isFiltering.value = false
   }, 200) // 200ms debounce for status (usually faster)
 }
 
-// Infinity loading function
-const loadMore = async () => {
-  if (loadingMore.value || !hasMoreItems.value) return
-  
-  loadingMore.value = true
-  
-  // Add a small delay for better UX
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  displayCount.value += loadIncrement
-  loadingMore.value = false
+// Pagination handlers
+const handlePageChange = async (page: number) => {
+  pageChanging.value = true
+  // Add small delay for better UX
+  await new Promise(resolve => setTimeout(resolve, 200))
+  currentPage.value = page
+  pageChanging.value = false
 }
+
+const handleSizeChange = async (size: number) => {
+  pageChanging.value = true
+  // Add small delay for better UX
+  await new Promise(resolve => setTimeout(resolve, 200))
+  pageSize.value = size
+  currentPage.value = 1 // Reset to first page
+  pageChanging.value = false
+}
+
+// Reset page when filters change
+const resetFilters = () => {
+  currentPage.value = 1
+}
+
+onUnmounted(() => {
+  if (filterTimeout.value) {
+    clearTimeout(filterTimeout.value)
+  }
+})
 
 const handleStatusChange = async (rowIndex: number, newStatus: string) => {
   statusUpdating.value[rowIndex] = true
@@ -361,5 +408,50 @@ const showOrderDetails = (order: Order) => {
 <style scoped>
 .el-select {
   width: 100%;
+}
+
+/* Mobile dialog optimization */
+:deep(.mobile-dialog .el-dialog) {
+  margin: 5vh auto !important;
+}
+
+:deep(.mobile-dialog .el-dialog__body) {
+  padding: 10px !important;
+}
+
+@media (max-width: 768px) {
+  :deep(.el-dialog) {
+    margin: 5vh auto !important;
+  }
+  
+  :deep(.el-dialog__header) {
+    padding: 15px 15px 10px !important;
+  }
+  
+  :deep(.el-dialog__body) {
+    padding: 10px 15px 20px !important;
+  }
+  
+  :deep(.el-dialog__title) {
+    font-size: 1.1rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  :deep(.el-dialog) {
+    margin: 2vh auto !important;
+  }
+  
+  :deep(.el-dialog__header) {
+    padding: 12px 12px 8px !important;
+  }
+  
+  :deep(.el-dialog__body) {
+    padding: 8px 12px 15px !important;
+  }
+  
+  :deep(.el-dialog__title) {
+    font-size: 1rem !important;
+  }
 }
 </style> 
