@@ -2,7 +2,7 @@ import axios from 'axios'
 import type { Order } from '@/types/order'
 
 const api = axios.create({
-  baseURL: 'http://localhost:5176/api'
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5176/api'
 })
 
 export const getOrders = async (month: number, year: number) => {
