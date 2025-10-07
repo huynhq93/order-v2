@@ -11,6 +11,7 @@
             @update:model-value="updateCustomerFilter"
             placeholder="Chọn khách hàng"
             clearable
+            :loading="isFiltering"
             class="w-100!"
           >
             <el-option
@@ -29,6 +30,7 @@
             placeholder="Chọn trạng thái"
             collapse-tags
             clearable
+            :loading="isFiltering"
             class="w-100"
           >
             <el-option
@@ -48,11 +50,12 @@
     <div class="relative">
       <el-table
         :data="filteredOrders"
-        :key="`table-${filters.customerName}-${filters.statuses.join(',')}`"
+        :key="`table-infinity-${displayCount}`"
         style="width: 100%"
         height="450"
         v-loading="loading"
         row-key="rowIndex"
+        :show-overflow-tooltip="true"
       >
         <el-table-column prop="date" label="DATE" />
         <el-table-column prop="customerName" label="TÊN KH" min-width="200">
@@ -85,7 +88,7 @@
             <el-select
               v-model="row.status"
               :loading="statusUpdating[row.rowIndex]"
-              @change="(value) => handleStatusChange(row.rowIndex, value)"
+              @change="(value: string) => handleStatusChange(row.rowIndex, value)"
               :class="getStatusColor(row.status)"
             >
               <el-option label="NHẬN ĐƠN" value="NHẬN ĐƠN" />
@@ -107,6 +110,33 @@
           </template>
         </el-table-column>
       </el-table>
+      
+      <!-- Infinity Loading Indicator -->
+      <div class="flex flex-col items-center mt-4">
+        <div class="text-sm text-gray-500 mb-2">
+          Hiển thị {{ filteredOrders.length }} trong tổng số {{ totalItems }} đơn hàng
+        </div>
+        
+        <!-- Load More Button -->
+        <div v-if="hasMoreItems" class="flex items-center space-x-2">
+          <el-button 
+            @click="loadMore"
+            :loading="loadingMore"
+            type="primary"
+            plain
+          >
+            {{ loadingMore ? 'Đang tải...' : `Tải thêm ${Math.min(loadIncrement, totalItems - displayCount)} đơn hàng` }}
+          </el-button>
+          <span class="text-xs text-gray-400">
+            hoặc cuộn xuống để tự động tải
+          </span>
+        </div>
+        
+        <!-- All loaded message -->
+        <div v-else-if="totalItems > 0" class="text-sm text-green-600">
+          ✓ Đã tải tất cả đơn hàng
+        </div>
+      </div>
     </div>
 
     <!-- Add Order Dialog -->
@@ -147,7 +177,7 @@ import OrderDetails from './OrderDetails.vue'
 import { ElMessage } from 'element-plus'
 
 const props = defineProps<{
-  selectedDate: Date
+  selectedDate: { month: number; year: number }
 }>()
 
 const store = useOrdersStore()
@@ -156,11 +186,20 @@ const showDetailsDialog = ref(false)
 const selectedOrder = ref<Order | null>(null)
 const statusUpdating = ref<Record<number, boolean>>({})
 
+// Infinity loading state
+const displayCount = ref(50) // Start with 50 items
+const loadingMore = ref(false)
+const loadIncrement = 25 // Load 25 more items each time
+
 // Use shallowRef for better performance on filter changes
 const filters = shallowRef({
   customerName: '',
   statuses: ['ĐANG CHỜ GIAO', 'ĐANG GIAO'] as string[],
 })
+
+// Debouncing state
+const filterTimeout = ref<number | null>(null)
+const isFiltering = ref(false)
 
 
 const statusOptions = [
@@ -186,10 +225,10 @@ const uniqueCustomerNames = computed(() => {
 })
 
 const orders = computed(() => store.orders)
-const loading = computed(() => store.loading)
+const loading = computed(() => store.loading || isFiltering.value)
 
-// Optimized filtering with early returns and reduced iterations
-const filteredOrders = computed(() => {
+// Fast pre-filtered orders (without pagination)
+const preFilteredOrders = computed(() => {
   const ordersData = orders.value
   if (!ordersData.length) return []
   
@@ -200,20 +239,39 @@ const filteredOrders = computed(() => {
     return ordersData
   }
   
-  // Use a single pass filter with early returns
-  return ordersData.filter((order) => {
+  // Use optimized filtering
+  const filtered = []
+  for (let i = 0; i < ordersData.length; i++) {
+    const order = ordersData[i]
+    
     // Check customer name first (usually more selective)
     if (customerName && order.customerName !== customerName) {
-      return false
+      continue
     }
     
     // Check status
     if (statuses.length > 0 && !statuses.includes(order.status)) {
-      return false
+      continue
     }
     
-    return true
-  })
+    filtered.push(order)
+  }
+  
+  return filtered
+})
+
+// Total items for display info
+const totalItems = computed(() => preFilteredOrders.value.length)
+
+// Displayed orders with infinity loading
+const filteredOrders = computed(() => {
+  const filtered = preFilteredOrders.value
+  return filtered.slice(0, displayCount.value)
+})
+
+// Check if there are more items to load
+const hasMoreItems = computed(() => {
+  return displayCount.value < preFilteredOrders.value.length
 })
 
 const getStatusColor = (status: string) => {
@@ -231,13 +289,44 @@ const getStatusColor = (status: string) => {
   }
 }
 
-// Optimized filter update functions
+// Optimized filter update functions with debouncing
 const updateCustomerFilter = (customerName: string) => {
-  filters.value = { ...filters.value, customerName }
+  if (filterTimeout.value) {
+    clearTimeout(filterTimeout.value)
+  }
+  
+  isFiltering.value = true
+  filterTimeout.value = window.setTimeout(() => {
+    filters.value = { ...filters.value, customerName }
+    displayCount.value = 50 // Reset display count when filter changes
+    isFiltering.value = false
+  }, 300) // 300ms debounce
 }
 
 const updateStatusFilter = (statuses: string[]) => {
-  filters.value = { ...filters.value, statuses }
+  if (filterTimeout.value) {
+    clearTimeout(filterTimeout.value)
+  }
+  
+  isFiltering.value = true
+  filterTimeout.value = window.setTimeout(() => {
+    filters.value = { ...filters.value, statuses }
+    displayCount.value = 50 // Reset display count when filter changes
+    isFiltering.value = false
+  }, 200) // 200ms debounce for status (usually faster)
+}
+
+// Infinity loading function
+const loadMore = async () => {
+  if (loadingMore.value || !hasMoreItems.value) return
+  
+  loadingMore.value = true
+  
+  // Add a small delay for better UX
+  await new Promise(resolve => setTimeout(resolve, 300))
+  
+  displayCount.value += loadIncrement
+  loadingMore.value = false
 }
 
 const handleStatusChange = async (rowIndex: number, newStatus: string) => {

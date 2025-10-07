@@ -21,7 +21,7 @@ export const useOrdersStore = defineStore('orders', {
       }
     },
 
-    async updateOrderStatus(rowIndex: number, status: string, selectedDate: Date) {
+    async updateOrderStatus(rowIndex: number, status: string, selectedDate: {month: number; year: number}) {
       try {
         await updateOrderStatus(rowIndex, status, selectedDate)
         const order = this.orders.find(o => o.rowIndex === rowIndex)

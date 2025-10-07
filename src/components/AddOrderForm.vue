@@ -25,7 +25,7 @@
             </div>
       
             <el-button
-              @click="() => $refs.imageInput?.click()"
+              @click="() => imageInput?.click()"
               type="primary"
               plain
             >
@@ -60,7 +60,7 @@
       </el-form-item>
 
       <el-form-item label="Số lượng" prop="quantity">
-        <el-input-number v-model="form.quantity" :min="1" />
+        <el-input v-model="form.quantity" />
       </el-form-item>
 
       <el-form-item label="Tổng tiền" prop="total">
@@ -107,14 +107,17 @@ import type { Order } from '@/types/order'
 import { ElMessage } from 'element-plus'
 import { useOrdersStore } from '@/stores/orders'
 import { uploadImage } from '@/api/images'
+
 const emit = defineEmits<{
   (e: 'submit', order: Omit<Order, 'rowIndex'>): void
   (e: 'cancel'): void
+  (e: 'order-added'): void
 }>()
 
 const orderStore = useOrdersStore()
 
 const formRef = ref<FormInstance>()
+const imageInput = ref<HTMLInputElement>()
 const form = ref({
   date: '',
   customerName: '',
@@ -122,7 +125,7 @@ const form = ref({
   productImage: '',
   color: '',
   size: '',
-  quantity: 1,
+  quantity: '1',
   total: '',
   status: 'NHẬN ĐƠN' as const,
   linkFb: '',
@@ -131,8 +134,7 @@ const form = ref({
 })
 
 const imagePreview = ref('')
-const file = ref(undefined)
-const uploadProgress = ref(0)
+const file = ref<File | undefined>(undefined)
 
 const rules: FormRules = {
   date: [{ required: true, message: 'Vui lòng chọn ngày', trigger: 'change' }],
@@ -171,7 +173,7 @@ const handleSubmit = async () => {
 
       const imageUrl = await uploadImage(file.value)
       form.value.productImage = imageUrl
-      const newOrder = await orderStore.addOrder(form.value)
+      await orderStore.addOrder(form.value)
       emit('order-added')
       ElMessage.success('Đã thêm đơn hàng mới')
     }

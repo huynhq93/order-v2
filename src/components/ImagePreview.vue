@@ -19,11 +19,11 @@
 <script setup lang="ts">
 import { Picture } from '@element-plus/icons-vue'
 
-defineProps<{
+const props = defineProps<{
   src: string
 }>()
 
 const handleError = () => {
-  console.error('Failed to load image:', src)
+  console.error('Failed to load image:', props.src)
 }
 </script> 

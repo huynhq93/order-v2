@@ -11,7 +11,7 @@ export const getOrders = async (month: number, year: number) => {
   return response.data.data
 }
 
-export const updateOrderStatus = async (rowIndex: number, status: string, selectedDate: Date) => {
+export const updateOrderStatus = async (rowIndex: number, status: string, selectedDate: {month: number; year: number}) => {
   const response = await api.put('/orders/status', {
     rowIndex,
     status,
