@@ -2,7 +2,16 @@
   <el-card class="w-full">
     <template #header>
       <div class="flex justify-between items-center">
-        <h2 class="text-2xl font-bold">Danh sách đơn hàng</h2>
+        <div class="flex items-center gap-6">
+          <h2 class="text-2xl font-bold">Danh sách đơn hàng</h2>
+          
+          <!-- Customer Type Radio -->
+          <el-radio-group v-model="customerType" size="default">
+            <el-radio-button label="customer">Khách</el-radio-button>
+            <el-radio-button label="ctv">CTV</el-radio-button>
+          </el-radio-group>
+        </div>
+        
         <!-- Filter Section -->
         <div class="mb-4 flex items-center gap-4">
           <!-- Filter by Customer -->
@@ -164,7 +173,7 @@
     <!-- Add Order Dialog -->
     <el-dialog
       v-model="showAddDialog"
-      title="Thêm đơn hàng mới"
+      :title="`Thêm đơn hàng mới - ${customerType === 'customer' ? 'Khách hàng' : 'CTV'}`"
       :width="addOrderDialogWidth"
       :close-on-click-modal="false"
       :class="{ 'mobile-dialog': isMobile, 'add-order-dialog': true }"
@@ -172,6 +181,7 @@
       <add-order-form
         ref="addOrderFormRef"
         :selected-date="selectedDate"
+        :customer-type="customerType"
         @order-added="handleOrderAdded"
         @cancel="showAddDialog = false"
       />
@@ -190,6 +200,7 @@
         v-if="selectedOrder"
         ref="orderDetailsRef"
         :order="selectedOrder"
+        :selected-date="selectedDate"
         @update="handleOrderUpdated"
       />
     </el-dialog>
@@ -197,7 +208,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, shallowRef, onUnmounted, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, shallowRef, onUnmounted, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useOrdersStore } from '@/stores/orders'
 import { formatCurrency } from '@/utils/format'
 import type { Order } from '@/types/order'
@@ -217,6 +228,9 @@ const selectedOrder = ref<Order | null>(null)
 const orderDetailsRef = ref()
 const addOrderFormRef = ref()
 const statusUpdating = ref<Record<number, boolean>>({})
+
+// Customer type selection
+const customerType = ref<'customer' | 'ctv'>('customer')
 
 // Responsive dialog
 const windowWidth = ref(window.innerWidth)
@@ -281,6 +295,35 @@ const statusOptions = [
   'HOÀN THÀNH',
   'Hủy',
 ]
+
+
+// Watch customer type changes and reload data
+watch(customerType, async (newType) => {
+  // Reset pagination
+  currentPage.value = 1
+  
+  // Reload orders with new sheet type
+  await store.fetchOrders(props.selectedDate, newType)
+  
+  // Show error message if there's an error
+  if (store.error) {
+    ElMessage.error(`Lỗi khi tải dữ liệu ${newType === 'customer' ? 'Khách hàng' : 'CTV'}: ${store.error}`)
+  }
+}, { immediate: false })
+
+// Watch selectedDate changes and reload data with current customer type
+watch(() => props.selectedDate, async (newDate) => {
+  // Reset pagination
+  currentPage.value = 1
+  
+  // Reload orders with current customer type and new date
+  await store.fetchOrders(newDate, customerType.value)
+  
+  // Show error message if there's an error
+  if (store.error) {
+    ElMessage.error(`Lỗi khi tải dữ liệu tháng ${newDate.month}/${newDate.year}: ${store.error}`)
+  }
+}, { deep: true, immediate: true })
 
 // Optimized computed for unique customer names with memoization
 const uniqueCustomerNames = computed(() => {
@@ -417,7 +460,7 @@ onUnmounted(() => {
 const handleStatusChange = async (rowIndex: number, newStatus: string) => {
   statusUpdating.value[rowIndex] = true
   try {
-    await store.updateOrderStatus(rowIndex, newStatus, props.selectedDate)
+    await store.updateOrderStatus(rowIndex, newStatus, props.selectedDate, customerType.value)
     ElMessage.success('Đã cập nhật trạng thái đơn hàng')
   } catch {
     ElMessage.error('Không thể cập nhật trạng thái')
@@ -432,7 +475,7 @@ const handleOrderAdded = async () => {
 }
 
 const handleOrderUpdated = (updatedOrder: Order) => {
-  store.updateOrder(updatedOrder)
+  store.updateOrder(updatedOrder, customerType.value)
   showDetailsDialog.value = false
   ElMessage.success('Đã cập nhật thông tin đơn hàng')
 }
@@ -501,6 +544,16 @@ const duplicateOrder = (order: Order) => {
 }
 
 @media (max-width: 768px) {
+  .flex.justify-between.items-center .flex.items-center.gap-6 {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  
+  .flex.justify-between.items-center .flex.items-center.gap-6 h2 {
+    margin: 0;
+  }
+  
   :deep(.el-dialog) {
     margin: 5vh auto !important;
   }

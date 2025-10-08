@@ -77,8 +77,8 @@
                 v-model="editedOrder.date"
                 type="date"
                 placeholder="Chọn ngày"
-                format="DD/MM/YYYY"
-                value-format="DD/MM/YYYY"
+                format="D/M/YYYY"
+                value-format="D/M/YYYY"
                 class="w-full"
               />
               <div v-else class="field-value">{{ order.date || '-' }}</div>
@@ -277,6 +277,7 @@ import {
 
 const props = defineProps<{
   order: Order
+  selectedDate?: { month: number; year: number }
 }>()
 
 const emit = defineEmits<{
@@ -286,7 +287,37 @@ const emit = defineEmits<{
 
 const isEditing = ref(false)
 const saving = ref(false)
-const editedOrder = ref<Order>({ ...props.order })
+
+// Helper function to convert date format for date picker
+const formatDateForPicker = (dateStr: string) => {
+  if (!dateStr) return ''
+  
+  // If already in YYYY/MM/DD format, return as is
+  if (dateStr.includes('/') && dateStr.split('/')[0].length === 4) {
+    const parts = dateStr.split('/')
+    return `${parts[2]}/${parts[1]}/${parts[0]}`
+  }
+  
+  // If in DD/MM/YYYY format, convert to YYYY/MM/DD
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/')
+    if (parts.length === 3) {
+      return dateStr
+    }
+    // If only DD/MM format (missing year), use selected year from MonthSelector
+    if (parts.length === 2) {
+      const selectedYear = props.selectedDate?.year || new Date().getFullYear()
+      return `${parts[0]}/${parts[1]}/${selectedYear}`
+    }
+  }
+  
+  return dateStr
+}
+
+const editedOrder = ref<Order>({ 
+    ...props.order,
+    date: formatDateForPicker(props.order.date)
+  })
 const imageInput = ref<HTMLInputElement>()
 const imagePreview = ref('')
 const imageFile = ref<File | null>(null)
@@ -294,7 +325,10 @@ const imageFile = ref<File | null>(null)
 // Reset editing state - to be called when modal is closed
 const resetEditingState = () => {
   isEditing.value = false
-  editedOrder.value = { ...props.order }
+  editedOrder.value = { 
+    ...props.order,
+    date: formatDateForPicker(props.order.date)
+  }
   imagePreview.value = ''
   imageFile.value = null
 }
@@ -321,15 +355,46 @@ const getStatusType = (status: string) => {
   }
 }
 
+
+
+// // Helper function to convert date back to display format
+// const formatDateForDisplay = (dateStr: string) => {
+//   if (!dateStr) return ''
+  
+//   // If in YYYY/MM/DD format, convert to DD/MM/YYYY
+//   if (dateStr.includes('/') && dateStr.split('/')[0].length === 4) {
+//     const parts = dateStr.split('/')
+//     if (parts.length === 3) {
+//       return `${parts[2]}/${parts[1]}/${parts[0]}`
+//     }
+//   }
+  
+//   // If only DD/MM format, keep as is
+//   if (dateStr.includes('/')) {
+//     const parts = dateStr.split('/')
+//     if (parts.length === 2) {
+//       return dateStr // Keep DD/MM format for display
+//     }
+//   }
+  
+//   return dateStr
+// }
+
 const startEdit = () => {
   isEditing.value = true
-  editedOrder.value = { ...props.order }
+  editedOrder.value = { 
+    ...props.order,
+    date: formatDateForPicker(props.order.date)
+  }
   imagePreview.value = ''
   imageFile.value = null
 }
 
 const cancelEdit = () => {
-  editedOrder.value = { ...props.order }
+  editedOrder.value = { 
+    ...props.order,
+    date: formatDateForPicker(props.order.date)
+  }
   isEditing.value = false
   imagePreview.value = ''
   imageFile.value = null

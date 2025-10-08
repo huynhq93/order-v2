@@ -6,25 +6,35 @@ export const useOrdersStore = defineStore('orders', {
   state: () => ({
     orders: [] as Order[],
     loading: false,
-    error: null as string | null
+    error: null as string | null,
   }),
 
   actions: {
-    async fetchOrders(month: number, year: number) {
+    async fetchOrders(
+      selectedDate: { month: number; year: number },
+      customerType: 'customer' | 'ctv' = 'customer',
+    ) {
       this.loading = true
+      this.error = null // Clear previous error
       try {
-        this.orders = await getOrders(month, year)
+        this.orders = await getOrders(selectedDate.month, selectedDate.year, customerType)
       } catch (err) {
+        this.orders = [] // Clear orders on error
         this.error = err instanceof Error ? err.message : 'Failed to fetch orders'
       } finally {
         this.loading = false
       }
     },
 
-    async updateOrderStatus(rowIndex: number, status: string, selectedDate: {month: number; year: number}) {
+    async updateOrderStatus(
+      rowIndex: number,
+      status: string,
+      selectedDate: { month: number; year: number },
+      customerType: 'customer' | 'ctv' = 'customer',
+    ) {
       try {
-        await updateOrderStatus(rowIndex, status, selectedDate)
-        const order = this.orders.find(o => o.rowIndex === rowIndex)
+        await updateOrderStatus(rowIndex, status, selectedDate, customerType)
+        const order = this.orders.find((o) => o.rowIndex === rowIndex)
         if (order) {
           order.status = status
         }
@@ -34,10 +44,10 @@ export const useOrdersStore = defineStore('orders', {
       }
     },
 
-    async updateOrder(order: Order) {
+    async updateOrder(order: Order, customerType: 'customer' | 'ctv' = 'customer') {
       try {
-        await updateOrder(order)
-        const index = this.orders.findIndex(o => o.rowIndex === order.rowIndex)
+        await updateOrder(order, customerType)
+        const index = this.orders.findIndex((o) => o.rowIndex === order.rowIndex)
         if (index !== -1) {
           this.orders[index] = order
         }
@@ -47,15 +57,15 @@ export const useOrdersStore = defineStore('orders', {
       }
     },
 
-    async addOrder(order: Omit<Order, 'rowIndex'>) {
+    async addOrder(order: Omit<Order, 'rowIndex'>, customerType: 'customer' | 'ctv' = 'customer') {
       try {
-        await addOrder(order)
+        await addOrder(order, customerType)
         const rowIndex = this.orders.length + 1;
         this.orders.push({...order, ...{rowIndex}})
       } catch (err) {
         this.error = err instanceof Error ? err.message : 'Failed to add order'
         throw err
       }
-    }
-  }
+    },
+  },
 }) 

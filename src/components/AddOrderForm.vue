@@ -211,6 +211,11 @@ const emit = defineEmits<{
   (e: 'order-added'): void
 }>()
 
+const props = defineProps<{
+  selectedDate: { month: number; year: number }
+  customerType: 'customer' | 'ctv'
+}>()
+
 const orderStore = useOrdersStore()
 
 const formRef = ref<FormInstance>()
@@ -360,7 +365,7 @@ const handleSubmit = async () => {
       productImage: imageUrl || form.value.productImage
     }
     
-    await orderStore.addOrder(orderData)
+    await orderStore.addOrder(orderData, props.customerType)
     ElMessage.success('Thêm đơn hàng thành công!')
     emit('order-added')
     resetForm()

@@ -95,7 +95,7 @@ router.post('/', async (req, res) => {
 // PUT route để update order status
 router.put('/status', async (req, res) => {
   try {
-    const { rowIndex, status, selectedDate } = req.body
+    const { rowIndex, status, selectedDate, sheetType } = req.body
 
     console.log('Update status request:', { rowIndex, status, selectedDate })
 
@@ -107,7 +107,7 @@ router.put('/status', async (req, res) => {
 
     // Tạo sheet name theo format tháng/năm
     const sheetName = getMonthlySheetName(
-      SHEET_TYPES.ORDERS,
+      SHEET_TYPES[sheetType],
       new Date(selectedDate.year, selectedDate.month - 1, 1),
     )
 
@@ -159,6 +159,7 @@ router.put('/:rowIndex', async (req, res) => {
       contactInfo,
       note,
       month,
+      sheetType,
     } = req.body
 
     console.log('Update full order request:', { rowIndex, body: req.body })
@@ -176,7 +177,7 @@ router.put('/:rowIndex', async (req, res) => {
 
     // Tạo sheet name theo format tháng/năm
     const sheetName = getMonthlySheetName(
-      SHEET_TYPES.ORDERS,
+      SHEET_TYPES[sheetType],
       new Date(selectedDate.year, selectedDate.month - 1, 1),
     )
 
@@ -259,7 +260,7 @@ async function readSheet(baseSheetName, date) {
     const rows = response.data.sheets?.[0]?.data?.[0]?.rowData || []
 
     // Map the data based on the sheet structure
-    if (baseSheetName === SHEET_TYPES.ORDERS || baseSheetName === SHEET_TYPES.COLLABORATORS) {
+    if (baseSheetName === SHEET_TYPES.ORDERS || baseSheetName === SHEET_TYPES.CTV_ORDERS) {
       // Skip the first 3 rows (headers)
       return rows
         .slice(3)
@@ -393,7 +394,7 @@ function formatMonthYear(date = new Date()) {
 const SHEET_TYPES = {
   ORDERS: 'BÁN HÀNG',
   INVENTORY: 'NHẬP HÀNG',
-  COLLABORATORS: 'CÔNG TÁC VIÊN',
+  CTV_ORDERS: 'CTV',
 }
 
 module.exports = router
@@ -426,7 +427,7 @@ module.exports = router
 //       const rows = response.data.sheets?.[0]?.data?.[0]?.rowData || [];
       
 //       // Map the data based on the sheet structure
-//       if (baseSheetName === SHEET_TYPES.ORDERS || baseSheetName === SHEET_TYPES.COLLABORATORS) {
+//       if (baseSheetName === SHEET_TYPES.ORDERS || baseSheetName === SHEET_TYPES.CTV_ORDERS) {
 //         // Skip the first 3 rows (headers)
 //         return rows.slice(3).map((row, index) => {
 //           const cells = row.values || [];
