@@ -216,8 +216,15 @@ const orderStore = useOrdersStore()
 const formRef = ref<FormInstance>()
 const imageInput = ref<HTMLInputElement>()
 const submitting = ref(false)
+
+// Get current date in YYYY/MM/DD format
+const getCurrentDate = () => {
+  const today = new Date()
+  return today.toISOString().split('T')[0].replace(/-/g, '/')
+}
+
 const form = ref({
-  date: '',
+  date: getCurrentDate(),
   customerName: '',
   productName: '',
   productImage: '',
@@ -237,13 +244,13 @@ const file = ref<File | undefined>(undefined)
 const rules: FormRules = {
   date: [{ required: true, message: 'Vui lòng chọn ngày', trigger: 'change' }],
   customerName: [{ required: true, message: 'Vui lòng nhập tên khách hàng', trigger: 'blur' }],
-  productName: [{ required: true, message: 'Vui lòng nhập tên sản phẩm', trigger: 'blur' }],
-  color: [{ required: true, message: 'Vui lòng nhập màu sắc', trigger: 'blur' }],
-  size: [{ required: true, message: 'Vui lòng nhập size', trigger: 'blur' }],
-  quantity: [{ required: true, message: 'Vui lòng nhập số lượng', trigger: 'change' }],
-  total: [{ required: true, message: 'Vui lòng nhập tổng tiền', trigger: 'blur' }],
-  status: [{ required: true, message: 'Vui lòng chọn trạng thái', trigger: 'change' }],
-  contactInfo: [{ required: true, message: 'Vui lòng nhập SĐT/Địa chỉ', trigger: 'blur' }]
+  // productName: [{ required: true, message: 'Vui lòng nhập tên sản phẩm', trigger: 'blur' }],
+  // color: [{ required: true, message: 'Vui lòng nhập màu sắc', trigger: 'blur' }],
+  // size: [{ required: true, message: 'Vui lòng nhập size', trigger: 'blur' }],
+  // quantity: [{ required: true, message: 'Vui lòng nhập số lượng', trigger: 'change' }],
+  // total: [{ required: true, message: 'Vui lòng nhập tổng tiền', trigger: 'blur' }],
+  // status: [{ required: true, message: 'Vui lòng chọn trạng thái', trigger: 'change' }],
+  // contactInfo: [{ required: true, message: 'Vui lòng nhập SĐT/Địa chỉ', trigger: 'blur' }]
 }
 
 // Image handling functions
@@ -370,7 +377,7 @@ const resetForm = () => {
   imagePreview.value = ''
   file.value = undefined
   form.value = {
-    date: '',
+    date: getCurrentDate(),
     customerName: '',
     productName: '',
     productImage: '',
@@ -389,6 +396,34 @@ const handleCancel = () => {
   resetForm()
   emit('cancel')
 }
+
+const populateForm = (orderData: Partial<Order>) => {
+  form.value = {
+    date: getCurrentDate(), // Always use current date for new orders
+    customerName: orderData.customerName || '',
+    productName: orderData.productName || '',
+    productImage: orderData.productImage || '',
+    color: orderData.color || '',
+    size: orderData.size || '',
+    quantity: String(orderData.quantity || 1),
+    total: String(orderData.total || ''),
+    status: 'NHẬN ĐƠN' as const,
+    linkFb: orderData.linkFb || '',
+    contactInfo: orderData.contactInfo || '',
+    note: orderData.note || ''
+  }
+  
+  // Set image preview if exists
+  if (orderData.productImage) {
+    imagePreview.value = orderData.productImage
+  }
+}
+
+// Expose functions for parent component
+defineExpose({
+  populateForm,
+  resetForm
+})
 </script>
 
 <style scoped>

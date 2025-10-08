@@ -11,6 +11,7 @@
             @update:model-value="updateCustomerFilter"
             placeholder="Chọn khách hàng"
             clearable
+            filterable
             :loading="isFiltering"
             class="w-100!"
           >
@@ -69,10 +70,10 @@
         :virtualized="filteredOrders.length > 100"
         :estimated-row-height="60"
       >
-        <el-table-column prop="date" label="DATE" />
-        <el-table-column prop="customerName" label="TÊN KH" min-width="200">
+        <el-table-column prop="date" label="DATE"  width="70" />
+        <el-table-column prop="customerName" label="TÊN KH" min-width="170">
           <template #default="{ row }">
-            <span class="truncate cursor-pointer">{{ row.customerName }}</span>
+            <span class="customer-name-cell cursor-pointer">{{ row.customerName }}</span>
           </template>
         </el-table-column>
         <el-table-column label="HÌNH ẢNH" width="100">
@@ -88,11 +89,11 @@
             />
           </template>
         </el-table-column>
-        <el-table-column prop="productName" label="SẢN PHẨM" />
-        <el-table-column prop="color" label="MÀU SẮC" />
+        <el-table-column prop="productName" label="SẢN PHẨM" min-width="100" />
+        <el-table-column prop="color" label="MÀU SẮC" min-width="90" />
         <el-table-column prop="size" label="SIZE" />
         <el-table-column prop="quantity" label="SL" />
-        <el-table-column label="TỔNG">
+        <el-table-column label="TỔNG" min-width="100">
           <template #default="{ row }">
             {{ formatCurrency(row.total) }}
           </template>
@@ -112,15 +113,26 @@
             </el-select>
           </template>
         </el-table-column>
-        <el-table-column label="" width="100">
+        <el-table-column label="" width="120">
           <template #default="{ row }">
-            <el-button
-              type="primary"
-              link
-              @click="showOrderDetails(row)"
-            >
-              Chi tiết
-            </el-button>
+            <div class="flex gap-1 justify-center">
+              <el-button
+                type="primary"
+                :icon="View"
+                circle
+                size="small"
+                @click="showOrderDetails(row)"
+                title="Chi tiết"
+              />
+              <el-button
+                type="success"
+                :icon="CopyDocument"
+                circle
+                size="small"
+                @click="duplicateOrder(row)"
+                title="Duplicate"
+              />
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -139,10 +151,12 @@
           v-model:page-size="pageSize"
           :page-sizes="[25, 50, 100, 200, 500, 1000]"
           :total="totalCount"
-          layout="sizes, prev, pager, next, jumper"
+          :layout="paginationLayout"
+          :pager-count="pagerCount"
           @size-change="handleSizeChange"
           @current-change="handlePageChange"
           :disabled="pageChanging"
+          :small="isMobile"
         />
       </div>
     </div>
@@ -156,6 +170,7 @@
       :class="{ 'mobile-dialog': isMobile, 'add-order-dialog': true }"
     >
       <add-order-form
+        ref="addOrderFormRef"
         :selected-date="selectedDate"
         @order-added="handleOrderAdded"
         @cancel="showAddDialog = false"
@@ -169,9 +184,11 @@
       :width="dialogWidth"
       :close-on-click-modal="false"
       :class="{ 'mobile-dialog': isMobile }"
+      @close="handleDetailsDialogClose"
     >
       <order-details
         v-if="selectedOrder"
+        ref="orderDetailsRef"
         :order="selectedOrder"
         @update="handleOrderUpdated"
       />
@@ -180,14 +197,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, shallowRef, onUnmounted, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, shallowRef, onUnmounted, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useOrdersStore } from '@/stores/orders'
 import { formatCurrency } from '@/utils/format'
 import type { Order } from '@/types/order'
 import AddOrderForm from './AddOrderForm.vue'
 import OrderDetails from './OrderDetails.vue'
 import { ElMessage } from 'element-plus'
-import { Loading } from '@element-plus/icons-vue'
+import { Loading, View, CopyDocument } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   selectedDate: { month: number; year: number }
@@ -197,6 +214,8 @@ const store = useOrdersStore()
 const showAddDialog = ref(false)
 const showDetailsDialog = ref(false)
 const selectedOrder = ref<Order | null>(null)
+const orderDetailsRef = ref()
+const addOrderFormRef = ref()
 const statusUpdating = ref<Record<number, boolean>>({})
 
 // Responsive dialog
@@ -226,6 +245,17 @@ const addOrderDialogWidth = computed(() => {
   if (windowWidth.value <= 480) return '95vw'
   if (windowWidth.value <= 768) return '90vw'
   return '1200px'
+})
+
+// Responsive pagination
+const paginationLayout = computed(() => {
+  return 'sizes, prev, pager, next, jumper'
+})
+
+const pagerCount = computed(() => {
+  if (windowWidth.value <= 480) return 3
+  if (windowWidth.value <= 768) return 5
+  return 7
 })
 
 // Use shallowRef for better performance on filter changes
@@ -407,15 +437,58 @@ const handleOrderUpdated = (updatedOrder: Order) => {
   ElMessage.success('Đã cập nhật thông tin đơn hàng')
 }
 
+const handleDetailsDialogClose = () => {
+  // Reset editing state when dialog is closed
+  if (orderDetailsRef.value && orderDetailsRef.value.resetEditingState) {
+    orderDetailsRef.value.resetEditingState()
+  }
+}
+
 const showOrderDetails = (order: Order) => {
   selectedOrder.value = order
   showDetailsDialog.value = true
+}
+
+const duplicateOrder = (order: Order) => {
+  // Show add dialog first
+  showAddDialog.value = true
+  
+  // Wait for next tick to ensure the form is mounted
+  nextTick(() => {
+    if (addOrderFormRef.value && addOrderFormRef.value.populateForm) {
+      // Populate form with order data
+      addOrderFormRef.value.populateForm({
+        customerName: order.customerName,
+        productName: order.productName,
+        color: order.color,
+        size: order.size,
+        quantity: order.quantity,
+        total: order.total,
+        productImage: order.productImage,
+        linkFb: order.linkFb,
+        contactInfo: order.contactInfo,
+        note: order.note || ''
+      })
+    }
+  })
 }
 </script>
 
 <style scoped>
 .el-select {
   width: 100%;
+}
+
+/* Customer name cell styling */
+.customer-name-cell {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+  max-height: calc(1.4em * 2);
+  word-break: break-word;
 }
 
 /* Mobile dialog optimization */
@@ -509,6 +582,48 @@ const showOrderDetails = (order: Order) => {
   :deep(.add-order-dialog.mobile-dialog .el-dialog__body) {
     max-height: calc(90vh - 100px) !important;
     padding: 0 !important;
+  }
+  
+  /* Mobile pagination styling */
+  .flex.justify-between.items-center.mt-4 {
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+  }
+  
+  :deep(.el-pagination) {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  :deep(.el-pagination .el-pager) {
+    margin: 0 4px;
+  }
+  
+  :deep(.el-pagination .btn-prev),
+  :deep(.el-pagination .btn-next) {
+    margin: 0 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Extra small mobile pagination */
+  :deep(.el-pagination) {
+    font-size: 12px;
+  }
+  
+  :deep(.el-pagination .el-pager li) {
+    min-width: 28px;
+    height: 28px;
+    line-height: 28px;
+    font-size: 12px;
+  }
+  
+  :deep(.el-pagination .btn-prev),
+  :deep(.el-pagination .btn-next) {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
   }
 }
 </style> 

@@ -281,6 +281,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update', order: Order): void
+  (e: 'close'): void
 }>()
 
 const isEditing = ref(false)
@@ -289,6 +290,19 @@ const editedOrder = ref<Order>({ ...props.order })
 const imageInput = ref<HTMLInputElement>()
 const imagePreview = ref('')
 const imageFile = ref<File | null>(null)
+
+// Reset editing state - to be called when modal is closed
+const resetEditingState = () => {
+  isEditing.value = false
+  editedOrder.value = { ...props.order }
+  imagePreview.value = ''
+  imageFile.value = null
+}
+
+// Expose the reset function to parent component
+defineExpose({
+  resetEditingState
+})
 
 const getStatusType = (status: string) => {
   switch (status) {
