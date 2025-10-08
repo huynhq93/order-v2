@@ -1,19 +1,33 @@
 <template>
   <el-card class="w-full">
     <template #header>
-      <div class="flex justify-between items-center">
-        <div class="flex items-center gap-6">
-          <h2 class="text-2xl font-bold">Danh sách đơn hàng</h2>
+      <div class="header-container">
+        <!-- Top Row: Title + Customer Type + Add Button -->
+        <div class="top-row">
+          <div class="title-section">
+            <!-- <h2 class="text-2xl font-bold">Danh sách đơn hàng</h2> -->
+            
+            <!-- Customer Type Radio + Add Button Row (mobile) -->
+            <div class="customer-type-row">
+              <el-radio-group v-model="customerType" size="default" class="customer-type-radio">
+                <el-radio-button label="customer">Khách</el-radio-button>
+                <el-radio-button label="ctv">CTV</el-radio-button>
+              </el-radio-group>
+              
+              <el-button type="primary" @click="showAddDialog = true" class="add-button mobile-add-button">
+                Thêm đơn hàng
+              </el-button>
+            </div>
+          </div>
           
-          <!-- Customer Type Radio -->
-          <el-radio-group v-model="customerType" size="default">
-            <el-radio-button label="customer">Khách</el-radio-button>
-            <el-radio-button label="ctv">CTV</el-radio-button>
-          </el-radio-group>
+          <!-- Desktop Add Button -->
+          <el-button type="primary" @click="showAddDialog = true" class="add-button desktop-add-button">
+            Thêm đơn hàng
+          </el-button>
         </div>
         
-        <!-- Filter Section -->
-        <div class="mb-4 flex items-center gap-4">
+        <!-- Filter Row: Customer Select + Status Select -->
+        <div class="filter-row">
           <!-- Filter by Customer -->
           <el-select
             :model-value="filters.customerName"
@@ -22,7 +36,7 @@
             clearable
             filterable
             :loading="isFiltering"
-            class="w-100!"
+            class="filter-select"
           >
             <template #prefix>
               <el-icon v-if="isFiltering">
@@ -51,7 +65,7 @@
             collapse-tags
             clearable
             :loading="isFiltering"
-            class="w-100"
+            class="filter-select"
           >
             <el-option
               v-for="status in statusOptions"
@@ -61,9 +75,6 @@
             />
           </el-select>
         </div>
-        <el-button type="primary" @click="showAddDialog = true">
-          Thêm đơn hàng
-        </el-button>
       </div>
     </template>
 
@@ -79,6 +90,24 @@
         :virtualized="filteredOrders.length > 100"
         :estimated-row-height="60"
       >
+        <template #empty>
+          <div class="text-center py-8">
+            <div v-if="hasError" class="text-red-500">
+              <el-icon size="48" class="mb-4">
+                <Warning />
+              </el-icon>
+              <p class="text-lg font-medium mb-2">Lỗi khi tải dữ liệu</p>
+              <p class="text-sm text-gray-500">{{ store.error }}</p>
+            </div>
+            <div v-else class="text-gray-500">
+              <el-icon size="48" class="mb-4">
+                <Document />
+              </el-icon>
+              <p class="text-lg font-medium mb-2">Không có đơn hàng</p>
+              <p class="text-sm">Chưa có đơn hàng nào trong tháng {{ selectedDate.month }}/{{ selectedDate.year }}</p>
+            </div>
+          </div>
+        </template>
         <el-table-column prop="date" label="DATE"  width="70" />
         <el-table-column prop="customerName" label="TÊN KH" min-width="170">
           <template #default="{ row }">
@@ -215,7 +244,7 @@ import type { Order } from '@/types/order'
 import AddOrderForm from './AddOrderForm.vue'
 import OrderDetails from './OrderDetails.vue'
 import { ElMessage } from 'element-plus'
-import { Loading, View, CopyDocument } from '@element-plus/icons-vue'
+import { Loading, View, CopyDocument, Warning, Document } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   selectedDate: { month: number; year: number }
@@ -341,6 +370,7 @@ const uniqueCustomerNames = computed(() => {
 
 const orders = computed(() => store.orders)
 const loading = computed(() => store.loading || isFiltering.value || pageChanging.value)
+const hasError = computed(() => !!store.error)
 
 // Fast pre-filtered orders (without pagination)
 const preFilteredOrders = computed(() => {
@@ -518,6 +548,59 @@ const duplicateOrder = (order: Order) => {
 </script>
 
 <style scoped>
+/* Header Layout */
+.header-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.customer-type-radio {
+  margin-left: 8px;
+}
+
+.customer-type-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.add-button {
+  flex-shrink: 0;
+}
+
+/* Show/hide buttons based on screen size */
+.mobile-add-button {
+  display: none;
+}
+
+.desktop-add-button {
+  display: block;
+}
+
+.filter-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.filter-select {
+  width: 200px;
+}
+
 .el-select {
   width: 100%;
 }
@@ -544,14 +627,55 @@ const duplicateOrder = (order: Order) => {
 }
 
 @media (max-width: 768px) {
-  .flex.justify-between.items-center .flex.items-center.gap-6 {
+  /* Header responsive */
+  .top-row {
     flex-direction: column;
     gap: 12px;
     align-items: flex-start;
   }
   
-  .flex.justify-between.items-center .flex.items-center.gap-6 h2 {
+  .title-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .title-section h2 {
     margin: 0;
+  }
+  
+  .customer-type-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  
+  .customer-type-radio {
+    margin-left: 0;
+  }
+  
+  /* Toggle button visibility */
+  .mobile-add-button {
+    display: block !important;
+    min-width: auto;
+    padding: 0 12px;
+    font-size: 14px;
+  }
+  
+  .desktop-add-button {
+    display: none !important;
+  }
+  
+  .filter-row {
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+  
+  .filter-select {
+    width: 100%;
   }
   
   :deep(.el-dialog) {
