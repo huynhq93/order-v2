@@ -7,14 +7,19 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: HomeView
+      component: HomeView,
     },
     {
       path: '/home',
       name: 'home-alt',
-      component: HomeView
-    }
-  ]
+      component: HomeView,
+    },
+    {
+      path: '/bill',
+      name: 'bill',
+      component: () => import('@/views/BillView.vue'),
+    },
+  ],
 })
 
 export default router 

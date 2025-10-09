@@ -12,6 +12,14 @@ export interface Order {
   linkFb: string
   contactInfo: string
   note: string
+  // Additional fields for billing
+  imageUrl?: string
+  price?: number
+  shippingFee?: number
+  totalAmount?: number
+  // Metadata for status updates
+  monthForUpdate?: number
+  yearForUpdate?: number
 }
 
 export type OrderStatus = 'NHẬN ĐƠN' | 'ĐANG GIAO' | 'ĐANG CHỜ GIAO' | 'Hủy' 

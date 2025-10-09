@@ -1,5 +1,19 @@
 <template>
   <div class="container mx-auto px-4 py-8">
+    <!-- Navigation Menu -->
+    <div class="navigation-menu">
+      <el-menu mode="horizontal" :default-active="activeMenuItem" @select="handleMenuSelect">
+        <el-menu-item index="orders">
+          <el-icon><Management /></el-icon>
+          <span>Quản lý đơn hàng</span>
+        </el-menu-item>
+        <el-menu-item index="bill">
+          <el-icon><Document /></el-icon>
+          <span>Tạo hóa đơn</span>
+        </el-menu-item>
+      </el-menu>
+    </div>
+    
     <!-- Hero Header -->
     <div class="hero-header">
       <h1 class="main-title">Quản lý đơn hàng</h1>
@@ -19,23 +33,70 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { Management, Document } from '@element-plus/icons-vue'
 import OrdersTable from '@/components/OrdersTable.vue'
 import MonthSelector from '@/components/MonthSelector.vue'
+
+const router = useRouter()
 
 const selectedDate = ref({
   month: new Date().getMonth() + 1,
   year: new Date().getFullYear()
 })
+
+const activeMenuItem = ref('orders')
+
+const handleMenuSelect = (index: string) => {
+  activeMenuItem.value = index
+  if (index === 'bill') {
+    router.push('/bill')
+  } else if (index === 'orders') {
+    router.push('/')
+  }
+}
 </script>
 
 <style scoped>
+.navigation-menu {
+  margin-bottom: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.navigation-menu :deep(.el-menu) {
+  border: none;
+}
+
+.navigation-menu :deep(.el-menu-item) {
+  padding: 0 20px;
+  height: 60px;
+  line-height: 60px;
+}
+
+.navigation-menu :deep(.el-menu-item:hover) {
+  background-color: #ecf5ff;
+}
+
+.navigation-menu :deep(.el-menu-item.is-active) {
+  background-color: #409eff;
+  color: white;
+}
+
+.navigation-menu :deep(.el-menu-item.is-active .el-icon) {
+  color: white;
+}
+
 .hero-header {
   text-align: center;
   margin-bottom: 32px;
   padding: 32px 0;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 16px;
-  margin: -8px -16px 32px -16px;
+  margin-left: -16px;
+  margin-right: -16px;
   color: white;
   position: relative;
   overflow: hidden;
