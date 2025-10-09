@@ -28,10 +28,9 @@
             <span>Thông tin hóa đơn</span>
           </div>
         </template>
-
         <el-form :model="billForm" label-width="120px" class="bill-form">
           <el-row :gutter="20">
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12">
               <el-form-item label="Tên khách hàng" required>
                 <el-input
                   v-model="billForm.customerName"
@@ -41,7 +40,7 @@
               </el-form-item>
             </el-col>
 
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12">
               <el-form-item label="Loại khách hàng" required>
                 <el-radio-group v-model="billForm.customerType">
                   <el-radio value="customer">Khách</el-radio>
@@ -52,7 +51,7 @@
           </el-row>
 
           <el-row :gutter="20">
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12">
               <el-form-item label="Tháng" required>
                 <el-select
                   v-model="billForm.months"
@@ -72,7 +71,7 @@
               </el-form-item>
             </el-col>
 
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12">
               <el-form-item label="Năm" required>
                 <el-select v-model="billForm.year" placeholder="Chọn năm" style="width: 100%">
                   <el-option v-for="year in yearOptions" :key="year" :label="year" :value="year" />
@@ -82,7 +81,7 @@
           </el-row>
 
           <el-row :gutter="20">
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12">
               <el-form-item label="Phí ship" required>
                 <el-input-number 
                   v-model="billForm.shippingFee"
@@ -160,13 +159,13 @@
             <table>
               <thead>
                 <tr>
-                  <th style="width: 80px;">STT</th>
-                  <th style="width: 100px;">SẢN PHẨM</th>
-                  <th style="width: 80px;">MÀU</th>
-                  <th style="width: 60px;">SIZE</th>
-                  <th style="width: 50px;">SL</th>
-                  <th style="width: 100px;">Giá</th>
-                  <th style="width: 100px;">Status</th>
+                  <th style="width: 70px;">STT</th>
+                  <th style="width: 90px;">SẢN PHẨM</th>
+                  <th style="width: 70px;">MÀU</th>
+                  <th style="width: 50px;">SIZE</th>
+                  <th style="width: 40px;">SL</th>
+                  <th style="width: 90px;">Giá</th>
+                  <th style="width: 80px;">Status</th>
                   <th>NOTE</th>
                 </tr>
               </thead>
@@ -232,7 +231,7 @@
     <el-dialog
       v-model="imageModalVisible"
       :title="imageModalTitle"
-      width="80%"
+      :width="imageModalWidth"
       align-center
       @close="closeImageModal"
     >
@@ -314,6 +313,13 @@ const billContent = ref<HTMLElement>()
 const imageModalVisible = ref(false)
 const imageModalSrc = ref('')
 const imageModalTitle = ref('')
+
+// Computed for responsive modal width
+const imageModalWidth = computed(() => {
+  if (window.innerWidth <= 480) return '95%'
+  if (window.innerWidth <= 768) return '90%'
+  return '80%'
+})
 
 // Computed
 const canGenerate = computed(() => {
@@ -610,6 +616,13 @@ const closeImageModal = () => {
   margin: 0 auto;
 }
 
+@media (max-width: 768px) {
+  .bill-form {
+    margin: 0;
+    max-width: 100%;
+  }
+}
+
 .bill-preview-section {
   margin-top: 32px;
 }
@@ -710,9 +723,10 @@ const closeImageModal = () => {
 .order-table th,
 .order-table td {
   border: 1px solid #000;
-  padding: 8px;
+  padding: 10px 8px;
   text-align: center;
   vertical-align: middle;
+  line-height: 1.2;
 }
 
 .order-table th {
@@ -722,13 +736,13 @@ const closeImageModal = () => {
 }
 
 .product-cell {
-  width: 80px;
-  padding: 4px;
+  width: 90px;
+  padding: 6px;
 }
 
 .product-image {
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
   object-fit: cover;
   border-radius: 4px;
   cursor: pointer;
@@ -736,7 +750,7 @@ const closeImageModal = () => {
 }
 
 .product-image:hover {
-  transform: scale(1.05);
+  transform: scale(1.1);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
@@ -761,9 +775,8 @@ const closeImageModal = () => {
   padding: 4px;
   white-space: nowrap;
 }
-
 .stt-cell {
-  padding: 4px;
+  padding: 8px 6px;
   text-align: center;
   vertical-align: middle;
 }
@@ -772,19 +785,19 @@ const closeImageModal = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .stt-number {
   font-weight: bold;
-  font-size: 0.9em;
+  font-size: 1em;
 }
 
 .actions-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .checkbox-cell {
@@ -802,14 +815,14 @@ const closeImageModal = () => {
 }
 
 .remove-btn {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   padding: 0;
-  min-height: 20px;
+  min-height: 24px;
 }
 
 .remove-btn :deep(.el-icon) {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 /* Mobile responsive */
@@ -827,8 +840,119 @@ const closeImageModal = () => {
     font-size: 1rem;
   }
 
-  .bill-form .el-col {
-    margin-bottom: 16px;
+  .bill-form-section {
+    margin-bottom: 24px;
+  }
+
+  .bill-form {
+    padding: 0;
+    margin: 0;
+  }
+
+  .bill-form :deep(.el-row) {
+    margin: 0 !important;
+  }
+
+  .bill-form :deep(.el-col) {
+    padding: 0 !important;
+    margin-bottom: 20px;
+  }
+
+  .bill-form :deep(.el-form-item) {
+    margin-bottom: 0;
+  }
+
+  .bill-form :deep(.el-form-item__label) {
+    width: 100% !important;
+    text-align: left !important;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #2c3e50;
+    display: block;
+    line-height: 1.3;
+  }
+
+  .bill-form :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+    width: 100%;
+    display: block;
+  }
+
+  /* 2.1. Ô input khách hàng nhỏ lại cho phù hợp với thiết bị di động */
+  .bill-form :deep(.el-input__wrapper) {
+    min-height: 38px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    display: flex;
+  }
+
+  .bill-form :deep(.el-input__inner) {
+    padding: 0 10px;
+    font-size: 15px;
+  }
+
+  .bill-form :deep(.el-select) {
+    width: 100%;
+    display: block;
+  }
+
+  .bill-form :deep(.el-select .el-input__wrapper) {
+    min-height: 38px;
+    width: 100%;
+  }
+
+  /* 2.4. Input phí ship nhỏ lại cho phù hợp với thiết bị di động */
+  .bill-form :deep(.el-input-number) {
+    width: 100% !important;
+    display: block;
+  }
+
+  .bill-form :deep(.el-input-number .el-input__wrapper) {
+    min-height: 38px;
+    width: 100%;
+  }
+
+  /* 2.2. Radio customer type nhỏ lại để 2 option trên cùng 1 hàng */
+  .bill-form :deep(.el-radio-group) {
+    display: flex;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+
+  .bill-form :deep(.el-radio) {
+    margin-right: 0;
+    padding: 8px 12px;
+    border: 1px solid #e1e5e9;
+    border-radius: 6px;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+    flex: 1;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .bill-form :deep(.el-radio.is-checked) {
+    border-color: #409eff;
+    background: #ecf5ff;
+  }
+
+  .bill-form :deep(.el-button--primary) {
+    width: 100%;
+    height: 48px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+
+  .bill-form :deep(.el-button:not(.el-button--primary)) {
+    width: 100%;
+    height: 44px;
+    font-size: 16px;
+    border-radius: 8px;
   }
 
   .summary-info {
@@ -845,22 +969,56 @@ const closeImageModal = () => {
 
   .order-table {
     overflow-x: auto;
+    margin: 0 -16px;
+    padding: 0 16px;
   }
   
   .order-table table {
-    min-width: 800px;
+    min-width: 700px;
   }
   
   .order-table th,
   .order-table td {
-    font-size: 0.85em;
+    font-size: 0.8em;
     padding: 6px;
+  }
+
+  .product-image {
+    width: 35px;
+    height: 35px;
+  }
+
+  .stt-container {
+    gap: 4px;
+  }
+
+  .actions-container {
+    gap: 4px;
+  }
+
+  .remove-btn {
+    width: 20px;
+    height: 20px;
+    min-height: 20px;
+  }
+
+  .remove-btn :deep(.el-icon) {
+    font-size: 10px;
+  }
+
+  .stt-number {
+    font-size: 0.9em;
   }
 }
 
 @media (max-width: 480px) {
+  .container {
+    padding: 0 12px !important;
+  }
+
   .hero-header {
-    padding: 20px 12px;
+    padding: 20px 16px;
+    margin: -12px -12px 28px -12px;
   }
 
   .main-title {
@@ -869,6 +1027,249 @@ const closeImageModal = () => {
 
   .subtitle {
     font-size: 0.9rem;
+  }
+
+  .bill-form-section {
+    margin-bottom: 20px;
+  }
+
+  .form-card {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .form-card :deep(.el-card__header) {
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: bold;
+  }
+
+  .form-card :deep(.el-card__body) {
+    padding: 20px 16px;
+  }
+
+  .bill-form {
+    padding: 0;
+    margin: 0;
+  }
+
+  .bill-form :deep(.el-row) {
+    margin: 0 !important;
+  }
+
+  .bill-form :deep(.el-col) {
+    padding: 0 !important;
+    margin-bottom: 20px;
+  }
+
+  .bill-form :deep(.el-form-item) {
+    margin-bottom: 0;
+    display: block;
+  }
+
+  .bill-form :deep(.el-form-item__label) {
+    width: 100% !important;
+    text-align: left !important;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #2c3e50;
+    line-height: 1.4;
+    display: block;
+    position: relative;
+  }
+
+  .bill-form :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+    width: 100%;
+    display: block;
+    position: relative;
+  }
+
+  .bill-form :deep(.el-input) {
+    width: 100%;
+    display: block;
+  }
+
+  .bill-form :deep(.el-input__wrapper) {
+    min-height: 48px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 2px solid #e1e5e9;
+    transition: all 0.3s ease;
+    font-size: 16px;
+    width: 100%;
+    display: flex;
+  }
+
+  .bill-form :deep(.el-input__wrapper:focus-within) {
+    border-color: #409eff;
+    box-shadow: 0 4px 8px rgba(64, 158, 255, 0.2);
+  }
+
+  .bill-form :deep(.el-input__inner) {
+    font-size: 16px;
+    padding: 0 12px;
+    border: none;
+    outline: none;
+    background: transparent;
+  }
+
+  .bill-form :deep(.el-select) {
+    width: 100%;
+    display: block;
+  }
+
+  .bill-form :deep(.el-select .el-input__wrapper) {
+    min-height: 48px;
+    width: 100%;
+  }
+
+  .bill-form :deep(.el-input-number) {
+    width: 100% !important;
+    display: block;
+  }
+
+  .bill-form :deep(.el-input-number .el-input__wrapper) {
+    min-height: 48px;
+    width: 100%;
+  }
+
+  .bill-form :deep(.el-input-number .el-input__inner) {
+    padding: 0 12px;
+  }
+
+  .bill-form :deep(.el-radio-group) {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .bill-form :deep(.el-radio) {
+    margin-right: 0;
+    padding: 12px 16px;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+    flex: 1;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .bill-form :deep(.el-radio.is-checked) {
+    border-color: #409eff;
+    background: #ecf5ff;
+    color: #409eff;
+  }
+
+  .bill-form :deep(.el-radio__label) {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .bill-form :deep(.el-button--primary) {
+    width: 100%;
+    height: 50px;
+    font-size: 16px;
+    font-weight: 700;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 8px rgba(64, 158, 255, 0.3);
+    border: none;
+    background: linear-gradient(135deg, #409eff 0%, #667eea 100%);
+  }
+
+  .bill-form :deep(.el-button:not(.el-button--primary)) {
+    width: 100%;
+    height: 46px;
+    font-size: 15px;
+    border-radius: 8px;
+    border: 2px solid #e1e5e9;
+    background: #f8f9fa;
+    color: #6c757d;
+    font-weight: 600;
+  }
+
+  .order-table {
+    margin: 0 -12px;
+    padding: 0 12px;
+  }
+
+  .order-table table {
+    min-width: 650px;
+  }
+
+  .order-table th,
+  .order-table td {
+    font-size: 0.75em;
+    padding: 8px 4px;
+  }
+
+  .product-image {
+    width: 32px;
+    height: 32px;
+  }
+
+  .stt-container {
+    gap: 4px;
+  }
+
+  .actions-container {
+    gap: 4px;
+  }
+
+  .remove-btn {
+    width: 22px;
+    height: 22px;
+    min-height: 22px;
+  }
+
+  .remove-btn :deep(.el-icon) {
+    font-size: 11px;
+  }
+
+  .stt-number {
+    font-size: 0.9em;
+  }
+
+  .image-modal-content {
+    min-height: 300px;
+  }
+
+  .modal-image {
+    max-height: 60vh;
+  }
+
+  .customer-info {
+    padding: 20px 16px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  }
+
+  .summary-info {
+    margin: 24px 0;
+    gap: 16px;
+  }
+
+  .summary-item {
+    padding: 16px 20px;
+    border-radius: 10px;
+    min-width: 140px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .notice {
+    padding: 16px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.6;
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: none;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
   }
 }
 </style>
