@@ -97,15 +97,17 @@
           </el-row>
 
           <el-form-item>
-            <el-button
-              type="primary"
-              @click="generateBill"
-              :loading="loading"
-              :disabled="!canGenerate"
-            >
-              Tạo hóa đơn
-            </el-button>
-            <el-button @click="resetForm">Reset</el-button>
+            <div class="button-container">
+              <el-button
+                type="primary"
+                @click="generateBill"
+                :loading="loading"
+                :disabled="!canGenerate"
+              >
+                Tạo hóa đơn
+              </el-button>
+              <el-button @click="resetForm">Reset</el-button>
+            </div>
           </el-form-item>
         </el-form>
       </el-card>
@@ -611,6 +613,27 @@ const closeImageModal = () => {
   font-size: 1.2em;
 }
 
+/* Button container for all screens */
+.button-container {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 12px;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.button-container .el-button {
+  margin: 0 !important;
+  flex-shrink: 0;
+}
+
+/* Override Element Plus button spacing */
+.bill-form .button-container :deep(.el-button + .el-button) {
+  margin-left: 0 !important;
+}
+
 .bill-form {
   max-width: 800px;
   margin: 0 auto;
@@ -849,6 +872,24 @@ const closeImageModal = () => {
     margin: 0;
   }
 
+  /* Override label-width cho tablet: 100px thay vì 120px */
+  .bill-form :deep(.el-form-item__label) {
+    width: 100px !important;
+    text-align: right !important;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #2c3e50;
+    display: inline-block;
+    line-height: 1.3;
+  }
+
+  .bill-form :deep(.el-form-item__content) {
+    margin-left: 100px !important;
+    width: calc(100% - 100px);
+    display: block;
+  }
+
   .bill-form :deep(.el-row) {
     margin: 0 !important;
   }
@@ -862,35 +903,29 @@ const closeImageModal = () => {
     margin-bottom: 0;
   }
 
-  .bill-form :deep(.el-form-item__label) {
-    width: 100% !important;
-    text-align: left !important;
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 6px;
-    color: #2c3e50;
-    display: block;
-    line-height: 1.3;
-  }
-
-  .bill-form :deep(.el-form-item__content) {
-    margin-left: 0 !important;
+  /* 2.1. Ô input khách hàng nhỏ lại cho phù hợp với thiết bị di động */
+  .bill-form :deep(.el-input) {
     width: 100%;
     display: block;
   }
 
-  /* 2.1. Ô input khách hàng nhỏ lại cho phù hợp với thiết bị di động */
   .bill-form :deep(.el-input__wrapper) {
     min-height: 38px;
     border-radius: 6px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     width: 100%;
     display: flex;
+    border: 1px solid #e1e5e9;
+    box-sizing: border-box;
   }
 
   .bill-form :deep(.el-input__inner) {
     padding: 0 10px;
     font-size: 15px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    box-sizing: border-box;
   }
 
   .bill-form :deep(.el-select) {
@@ -901,6 +936,8 @@ const closeImageModal = () => {
   .bill-form :deep(.el-select .el-input__wrapper) {
     min-height: 38px;
     width: 100%;
+    border: 1px solid #e1e5e9;
+    box-sizing: border-box;
   }
 
   /* 2.4. Input phí ship nhỏ lại cho phù hợp với thiết bị di động */
@@ -912,6 +949,18 @@ const closeImageModal = () => {
   .bill-form :deep(.el-input-number .el-input__wrapper) {
     min-height: 38px;
     width: 100%;
+    border: 1px solid #e1e5e9;
+    display: flex;
+    box-sizing: border-box;
+  }
+
+  .bill-form :deep(.el-input-number .el-input__inner) {
+    padding: 0 10px;
+    font-size: 15px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    box-sizing: border-box;
   }
 
   /* 2.2. Radio customer type nhỏ lại để 2 option trên cùng 1 hàng */
@@ -940,19 +989,32 @@ const closeImageModal = () => {
   }
 
   .bill-form :deep(.el-button--primary) {
-    width: 100%;
+    width: 60% !important;
     height: 48px;
     font-size: 16px;
     font-weight: 600;
     border-radius: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 0 !important;
+    margin-right: 0 !important;
+    flex: 0 0 60% !important;
   }
 
   .bill-form :deep(.el-button:not(.el-button--primary)) {
-    width: 100%;
-    height: 44px;
+    width: 38% !important;
+    height: 48px;
     font-size: 16px;
     border-radius: 8px;
+    margin: 0 !important;
+    flex: 0 0 38% !important;
+  }
+
+  .button-container {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 12px;
+    align-items: center;
+    width: 100%;
+    flex-wrap: nowrap !important;
   }
 
   .summary-info {
@@ -1091,54 +1153,82 @@ const closeImageModal = () => {
   .bill-form :deep(.el-input) {
     width: 100%;
     display: block;
+    max-width: 100%;
   }
 
   .bill-form :deep(.el-input__wrapper) {
-    min-height: 48px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    border: 2px solid #e1e5e9;
+    min-height: 36px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e1e5e9;
     transition: all 0.3s ease;
-    font-size: 16px;
+    font-size: 15px;
     width: 100%;
+    max-width: 100%;
     display: flex;
+    box-sizing: border-box;
   }
 
   .bill-form :deep(.el-input__wrapper:focus-within) {
     border-color: #409eff;
-    box-shadow: 0 4px 8px rgba(64, 158, 255, 0.2);
+    box-shadow: 0 2px 4px rgba(64, 158, 255, 0.15);
   }
 
   .bill-form :deep(.el-input__inner) {
-    font-size: 16px;
-    padding: 0 12px;
+    font-size: 15px;
+    padding: 0 10px;
     border: none;
     outline: none;
     background: transparent;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .bill-form :deep(.el-select) {
     width: 100%;
     display: block;
+    max-width: 100%;
   }
 
   .bill-form :deep(.el-select .el-input__wrapper) {
-    min-height: 48px;
+    min-height: 36px;
     width: 100%;
+    max-width: 100%;
+    border: 1px solid #e1e5e9;
+    box-sizing: border-box;
   }
 
   .bill-form :deep(.el-input-number) {
     width: 100% !important;
     display: block;
+    max-width: 100% !important;
   }
 
   .bill-form :deep(.el-input-number .el-input__wrapper) {
-    min-height: 48px;
+    min-height: 36px;
     width: 100%;
+    max-width: 100%;
+    border: 1px solid #e1e5e9;
+    box-sizing: border-box;
+    display: flex;
   }
 
   .bill-form :deep(.el-input-number .el-input__inner) {
-    padding: 0 12px;
+    padding: 0 10px;
+    font-size: 15px;
+    width: 100%;
+    max-width: 100%;
+    border: none;
+    background: transparent;
+    box-sizing: border-box;
+  }
+
+  .bill-form :deep(.el-input-number .el-input-number__decrease),
+  .bill-form :deep(.el-input-number .el-input-number__increase) {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
   }
 
   .bill-form :deep(.el-radio-group) {
@@ -1171,27 +1261,47 @@ const closeImageModal = () => {
     font-weight: 600;
   }
 
+  /* Button container alignment */
+  .button-container {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 12px;
+    align-items: center !important;
+    width: 100% !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start;
+  }
+
+  .bill-form :deep(.el-form-item:last-child) {
+    margin-top: 20px;
+  }
+
   .bill-form :deep(.el-button--primary) {
-    width: 100%;
+    width: 60% !important;
     height: 50px;
     font-size: 16px;
     font-weight: 700;
     border-radius: 8px;
-    margin-bottom: 12px;
+    margin: 0 !important;
     box-shadow: 0 4px 8px rgba(64, 158, 255, 0.3);
     border: none;
     background: linear-gradient(135deg, #409eff 0%, #667eea 100%);
+    flex: 0 0 60% !important;
+    max-width: 60% !important;
   }
 
   .bill-form :deep(.el-button:not(.el-button--primary)) {
-    width: 100%;
-    height: 46px;
+    width: 38% !important;
+    height: 50px;
     font-size: 15px;
     border-radius: 8px;
     border: 2px solid #e1e5e9;
     background: #f8f9fa;
     color: #6c757d;
     font-weight: 600;
+    flex: 0 0 38% !important;
+    max-width: 38% !important;
+    margin: 0 !important;
   }
 
   .order-table {
