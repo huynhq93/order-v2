@@ -1126,6 +1126,32 @@ const closeImageModal = () => {
     margin-bottom: 20px;
   }
 
+  /* Tháng và năm hiển thị cùng 1 hàng trên mobile */
+  .bill-form :deep(.el-row:nth-of-type(2)) {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 12px;
+    margin: 0 !important;
+  }
+
+  .bill-form :deep(.el-row:nth-of-type(2) .el-col) {
+    flex: 1 !important;
+    width: auto !important;
+    margin-bottom: 20px;
+    padding: 0 !important;
+  }
+
+  .bill-form :deep(.el-row:nth-of-type(2) .el-form-item__label) {
+    width: 100% !important;
+    text-align: left !important;
+    margin-bottom: 6px;
+  }
+
+  .bill-form :deep(.el-row:nth-of-type(2) .el-form-item__content) {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
   .bill-form :deep(.el-form-item) {
     margin-bottom: 0;
     display: block;
