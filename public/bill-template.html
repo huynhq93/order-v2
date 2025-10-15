@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hóa đơn Ship - Template</title>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: 'Arial', sans-serif; 
+      margin: 0;
+      padding: 0;
+      background: white;
+    }
+    
+    .bill-container {
+      width: 210mm;
+      height: 297mm;
+      margin: 0 auto;
+      background-image: url('./image/ship.jpeg');
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      position: relative;
+      overflow: hidden;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      background-color: white;
+    }
+    
+    .overlay-content {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      color: #000;
+      font-weight: bold;
+    }
+    
+    /* Người nhận - khớp với vị trí trong hình */
+    .customer-name {
+      position: absolute;
+      top: 285px;
+      left: 460px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #000;
+      max-width: 250px;
+      text-align: left;
+    }
+    
+    /* Số điện thoại - dưới người nhận */
+    .customer-phone {
+      position: absolute;
+      top: 345px;
+      left: 460px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #000;
+      max-width: 250px;
+      text-align: left;
+    }
+    
+    /* Địa chỉ - dưới số điện thoại */
+    .customer-address {
+      position: absolute;
+      top: 400px;
+      left: 460px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #000;
+      max-width: 250px;
+      text-align: left;
+    }
+    
+    /* Mã vận đơn - vị trí theo hình */
+    .order-code {
+      position: absolute;
+      top: 525px;
+      left: 460px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #000;
+      max-width: 250px;
+      text-align: left;
+    }
+    
+    /* Tổng cộng - vị trí theo hình */
+    .total-amount {
+      position: absolute;
+      top: 580px;
+      left: 460px;
+      font-size: 14px;
+      font-weight: bold;
+      color: #000;
+      max-width: 250px;
+      text-align: left;
+    }
+    
+    @media print {
+      body { 
+        margin: 0; 
+        padding: 0;
+        background: white;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .bill-container { 
+        width: 100%; 
+        height: 100vh;
+        margin: 0;
+        page-break-after: always;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        background-size: contain !important;
+        background-position: center !important;
+      }
+      @page {
+        size: A4;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="bill-container">
+    <div class="overlay-content">
+      <!-- Người nhận -->
+      <div class="customer-name" id="customer-name">
+        [TÊN KHÁCH HÀNG]
+      </div>
+      
+      <!-- Số điện thoại -->
+      <div class="customer-phone" id="customer-phone">
+        [SỐ ĐIỆN THOẠI]
+      </div>
+      
+      <!-- Địa chỉ (để trống cho người dùng ghi tay) -->
+      <div class="customer-address" id="customer-address">
+        <!-- Để trống -->
+      </div>
+      
+      <!-- Mã vận đơn -->
+      <div class="order-code" id="order-code">
+        [MÃ VẬN ĐƠN]
+      </div>
+      
+      <!-- Tổng cộng -->
+      <div class="total-amount" id="total-amount">
+        [TỔNG CỘNG]
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Function để cập nhật thông tin từ parent window
+    function updateBillInfo(data) {
+      document.getElementById('customer-name').textContent = data.customerName;
+      document.getElementById('customer-phone').textContent = data.customerPhone;
+      document.getElementById('order-code').textContent = data.orderCode;
+      document.getElementById('total-amount').textContent = data.totalAmount;
+    }
+
+    // Listen for message từ parent window
+    window.addEventListener('message', function(event) {
+      if (event.data.type === 'UPDATE_BILL_INFO') {
+        updateBillInfo(event.data.data);
+      } else if (event.data.type === 'PRINT_BILL') {
+        window.print();
+      }
+    });
+  </script>
+</body>
+</html>

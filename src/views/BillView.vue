@@ -423,61 +423,42 @@ const formatCurrency = (amount: number | undefined) => {
 }
 
 const printBill = () => {
-  const printContent = billContent.value?.innerHTML
-  if (!printContent) return
+  if (billData.value.length === 0) return
 
-  const printWindow = window.open('', '_blank')
-  if (!printWindow) return
+  // Generate shipping order number
+  const orderNumber = Date.now().toString().slice(-8)
+  
+  // Mở template HTML trong cửa sổ mới
+  const printWindow = window.open('/bill-template.html', '_blank', 'width=800,height=600')
+  
+  if (!printWindow) {
+    ElMessage.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.')
+    return
+  }
 
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Hóa đơn - ${billForm.value.customerName}</title>
-      <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .customer-info { margin: 20px 0; }
-        .info-row { margin: 8px 0; }
-        .label { font-weight: bold; }
-        .summary-info { display: flex; justify-content: flex-end; gap: 20px; margin: 20px 0; }
-        .summary-item { padding: 8px 12px; }
-        .shipping { background: #e3f2fd; }
-        .total { background: #4caf50; color: white; }
-        .notice { 
-          background: #fff3cd; 
-          border: 1px solid #ffeaa7; 
-          padding: 10px; 
-          margin: 20px 0; 
-          font-weight: bold;
-          color: #856404;
-        }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { border: 1px solid #000; padding: 8px; text-align: center; }
-        th { background: #4caf50; color: white; }
-        .product-image { width: 50px; height: 50px; object-fit: cover; }
-        .checkbox-cell { display: none; } /* Hide checkbox when printing */
-        .actions-cell { display: none; } /* Hide actions when printing */
-        .actions-container { display: none; } /* Hide actions container when printing */
-        .stt-container .actions-container { display: none !important; }
-        @media print {
-          body { margin: 0; }
-          .no-print { display: none; }
-          .checkbox-cell { display: none !important; }
-          .actions-cell { display: none !important; }
-          .actions-container { display: none !important; }
-          .stt-container .actions-container { display: none !important; }
-        }
-      </style>
-    </head>
-    <body>
-      <h1 style="text-align: center;">HÓA ĐƠN</h1>
-      ${printContent}
-    </body>
-    </html>
-  `)
+  // Đợi template load xong rồi gửi dữ liệu
+  printWindow.onload = () => {
+    // Gửi thông tin tới template
+    const billData = {
+      customerName: billForm.value.customerName.toUpperCase(),
+      customerPhone: customerContact.value,
+      orderCode: orderNumber,
+      totalAmount: formatCurrency(totalAmount.value)
+    }
 
-  printWindow.document.close()
-  printWindow.print()
+    // Cập nhật thông tin trong template
+    printWindow.postMessage({
+      type: 'UPDATE_BILL_INFO',
+      data: billData
+    }, '*')
+
+    // Đợi 1 giây để đảm bảo dữ liệu đã được cập nhật, sau đó in
+    setTimeout(() => {
+      printWindow.postMessage({
+        type: 'PRINT_BILL'
+      }, '*')
+    }, 1000)
+  }
 }
 
 const handleStatusChange = async (order: Order, checked: boolean) => {
@@ -1018,15 +999,40 @@ const closeImageModal = () => {
   }
 
   .summary-info {
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 10px;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 12px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .summary-item {
+    flex: 1 !important;
+    min-width: auto !important;
+    padding: 12px 8px !important;
+    font-size: 14px !important;
+  }
+
+  .summary-item .label {
+    font-size: 12px !important;
+    margin-bottom: 4px;
+  }
+
+  .summary-item .value {
+    font-size: 15px !important;
+    font-weight: bold;
   }
 
   .bill-header {
     flex-direction: column;
     gap: 12px;
     align-items: flex-start;
+  }
+
+  .notice {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    padding: 10px 12px !important;
   }
 
   .order-table {
@@ -1387,25 +1393,42 @@ const closeImageModal = () => {
   }
 
   .summary-info {
-    margin: 24px 0;
-    gap: 16px;
+    margin: 20px 0 !important;
+    gap: 12px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
   }
 
   .summary-item {
-    padding: 16px 20px;
-    border-radius: 10px;
-    min-width: 140px;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    padding: 14px 12px !important;
+    border-radius: 8px !important;
+    min-width: auto !important;
+    flex: 1 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
+    font-size: 13px !important;
+  }
+
+  .summary-item .label {
+    font-size: 11px !important;
+    margin-bottom: 4px;
+  }
+
+  .summary-item .value {
+    font-size: 14px !important;
+    font-weight: bold;
   }
 
   .notice {
-    padding: 16px 20px;
-    border-radius: 10px;
-    font-size: 14px;
-    line-height: 1.6;
-    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-    border: none;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    padding: 12px 16px !important;
+    border-radius: 8px !important;
+    font-size: 11px !important;
+    line-height: 1.5 !important;
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%) !important;
+    border: none !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
   }
 }
 </style>
