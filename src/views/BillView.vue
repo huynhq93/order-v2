@@ -119,7 +119,7 @@
         <template #header>
           <div class="bill-header">
             <div class="bill-title">HÓA ĐƠN</div>
-            <el-button type="primary" @click="printBill" icon="Printer">In hóa đơn</el-button>
+            <el-button type="primary" @click="printBill" icon="Download">Tải hóa đơn</el-button>
           </div>
         </template>
 
@@ -258,7 +258,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Management, Document, Delete } from '@element-plus/icons-vue'
+import { Management, Document, Delete, Download } from '@element-plus/icons-vue'
 import { useOrdersStore } from '@/stores/orders'
 import type { Order } from '@/types/order'
 
@@ -425,14 +425,11 @@ const formatCurrency = (amount: number | undefined) => {
 const printBill = () => {
   if (billData.value.length === 0) return
 
-  // Generate shipping order number
-  const orderNumber = Date.now().toString().slice(-8)
-  
   // Mở template HTML trong cửa sổ mới
-  const printWindow = window.open('/bill-template.html', '_blank', 'width=800,height=600')
+  const printWindow = window.open('/bill-template.html', '_blank', 'width=900,height=650')
   
   if (!printWindow) {
-    ElMessage.error('Không thể mở cửa sổ in. Vui lòng cho phép popup.')
+    ElMessage.error('Không thể mở cửa sổ download. Vui lòng cho phép popup.')
     return
   }
 
@@ -442,7 +439,6 @@ const printBill = () => {
     const billData = {
       customerName: billForm.value.customerName.toUpperCase(),
       customerPhone: customerContact.value,
-      orderCode: orderNumber,
       totalAmount: formatCurrency(totalAmount.value)
     }
 
@@ -452,13 +448,24 @@ const printBill = () => {
       data: billData
     }, '*')
 
-    // Đợi 1 giây để đảm bảo dữ liệu đã được cập nhật, sau đó in
+    // Đợi 1.5 giây để đảm bảo dữ liệu và background đã được cập nhật, sau đó download
     setTimeout(() => {
       printWindow.postMessage({
-        type: 'PRINT_BILL'
+        type: 'DOWNLOAD_AS_IMAGE',
+        data: billData
       }, '*')
-    }, 1000)
+    }, 1500)
   }
+
+  // Listen for download completion message
+  const handleMessage = (event: MessageEvent) => {
+    if (event.data.type === 'DOWNLOAD_COMPLETED') {
+      ElMessage.success('Đã tải xuống hóa đơn thành công!')
+      window.removeEventListener('message', handleMessage)
+    }
+  }
+  
+  window.addEventListener('message', handleMessage)
 }
 
 const handleStatusChange = async (order: Order, checked: boolean) => {

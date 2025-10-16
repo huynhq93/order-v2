@@ -18,11 +18,11 @@
     }
     
     .bill-container {
-      width: 210mm;
-      height: 297mm;
+      width: 886px;
+      height: 591px;
       margin: 0 auto;
       background-image: url('./image/ship.jpeg');
-      background-size: contain;
+      background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
       position: relative;
@@ -40,63 +40,64 @@
       font-weight: bold;
     }
     
-    /* Người nhận - khớp với vị trí trong hình */
+    /* Người nhận - vị trí chính xác theo hình */
     .customer-name {
       position: absolute;
-      top: 285px;
-      left: 460px;
-      font-size: 12px;
+      top: 230px;
+      left: 570px;
+      font-size: 14px;
       font-weight: bold;
       color: #000;
-      max-width: 250px;
+      max-width: 180px;
       text-align: left;
+      word-wrap: break-word;
     }
     
-    /* Số điện thoại - dưới người nhận */
+    /* Số điện thoại - vị trí theo hình */
     .customer-phone {
       position: absolute;
-      top: 345px;
-      left: 460px;
-      font-size: 12px;
+      top: 284px;
+      left: 590px;
+      font-size: 14px;
       font-weight: bold;
       color: #000;
-      max-width: 250px;
+      max-width: 180px;
       text-align: left;
     }
     
-    /* Địa chỉ - dưới số điện thoại */
+    /* Địa chỉ - vị trí theo hình */
     .customer-address {
       position: absolute;
-      top: 400px;
-      left: 460px;
-      font-size: 12px;
+      top: 215px;
+      left: 540px;
+      font-size: 14px;
       font-weight: bold;
       color: #000;
-      max-width: 250px;
+      max-width: 180px;
       text-align: left;
     }
     
     /* Mã vận đơn - vị trí theo hình */
     .order-code {
       position: absolute;
-      top: 525px;
-      left: 460px;
-      font-size: 12px;
+      top: 275px;
+      left: 540px;
+      font-size: 14px;
       font-weight: bold;
       color: #000;
-      max-width: 250px;
+      max-width: 180px;
       text-align: left;
     }
     
     /* Tổng cộng - vị trí theo hình */
     .total-amount {
       position: absolute;
-      top: 580px;
-      left: 460px;
-      font-size: 14px;
+      top: 493px;
+      left: 650px;
+      font-size: 15px;
       font-weight: bold;
       color: #000;
-      max-width: 250px;
+      max-width: 180px;
       text-align: left;
     }
     
@@ -109,17 +110,17 @@
         print-color-adjust: exact;
       }
       .bill-container { 
-        width: 100%; 
-        height: 100vh;
+        width: 886px; 
+        height: 591px;
         margin: 0;
         page-break-after: always;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
-        background-size: contain !important;
+        background-size: cover !important;
         background-position: center !important;
       }
       @page {
-        size: A4;
+        size: 886px 591px;
         margin: 0;
       }
     }
@@ -130,12 +131,12 @@
     <div class="overlay-content">
       <!-- Người nhận -->
       <div class="customer-name" id="customer-name">
-        [TÊN KHÁCH HÀNG]
+        <!-- [TÊN KHÁCH HÀNG] -->
       </div>
       
       <!-- Số điện thoại -->
       <div class="customer-phone" id="customer-phone">
-        [SỐ ĐIỆN THOẠI]
+        <!-- [SỐ ĐIỆN THOẠI] -->
       </div>
       
       <!-- Địa chỉ (để trống cho người dùng ghi tay) -->
@@ -144,33 +145,98 @@
       </div>
       
       <!-- Mã vận đơn -->
-      <div class="order-code" id="order-code">
+      <!-- <div class="order-code" id="order-code">
         [MÃ VẬN ĐƠN]
-      </div>
+      </div> -->
       
       <!-- Tổng cộng -->
       <div class="total-amount" id="total-amount">
-        [TỔNG CỘNG]
+        <!-- [TỔNG CỘNG] -->
       </div>
     </div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script>
     // Function để cập nhật thông tin từ parent window
     function updateBillInfo(data) {
       document.getElementById('customer-name').textContent = data.customerName;
       document.getElementById('customer-phone').textContent = data.customerPhone;
-      document.getElementById('order-code').textContent = data.orderCode;
+    //   document.getElementById('order-code').textContent = data.orderCode;
       document.getElementById('total-amount').textContent = data.totalAmount;
+    }
+
+    // Function để download image
+    function downloadAsImage(data) {
+      const container = document.querySelector('.bill-container');
+      
+      html2canvas(container, {
+        width: 886,
+        height: 591,
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      }).then(function(canvas) {
+        // Tạo tên file theo format: tenkhachhang_ngaythangnam_giophutgiay
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hour = String(now.getHours()).padStart(2, '0');
+        const minute = String(now.getMinutes()).padStart(2, '0');
+        const second = String(now.getSeconds()).padStart(2, '0');
+        
+        const customerName = data.customerName.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '');
+        const fileName = `${customerName}_${year}${month}${day}_${hour}${minute}${second}.png`;
+        
+        // Tạo link download
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = canvas.toDataURL('image/png', 1.0);
+        
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Thông báo cho parent window
+        if (window.opener) {
+          window.opener.postMessage({
+            type: 'DOWNLOAD_COMPLETED'
+          }, '*');
+        }
+        
+        // Đóng cửa sổ ngay lập tức
+        window.close();
+      }).catch(function(error) {
+        console.error('Error generating image:', error);
+        alert('Có lỗi xảy ra khi tạo hình ảnh');
+      });
     }
 
     // Listen for message từ parent window
     window.addEventListener('message', function(event) {
       if (event.data.type === 'UPDATE_BILL_INFO') {
         updateBillInfo(event.data.data);
+      } else if (event.data.type === 'DOWNLOAD_AS_IMAGE') {
+        // Đợi một chút để đảm bảo background image đã load
+        setTimeout(() => {
+          downloadAsImage(event.data.data);
+        }, 500);
       } else if (event.data.type === 'PRINT_BILL') {
         window.print();
       }
+    });
+
+    // Đảm bảo background image đã load
+    window.addEventListener('load', function() {
+      const img = new Image();
+      img.onload = function() {
+        console.log('Background image loaded successfully');
+      };
+      img.src = './image/ship.jpeg';
     });
   </script>
 </body>
