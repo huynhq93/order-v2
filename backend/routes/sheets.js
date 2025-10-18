@@ -55,7 +55,8 @@ router.post('/', async (req, res) => {
     } = req.body
 
     console.log('req.query.type:', req.query.type)
-    const dateObj = date ? new Date(date) : new Date()
+    const dateObj = date ? parseDateString(date) : new Date()
+    let generatedProductCode = '' // Declare variable at function scope
 
     // Logic add sản phẩm mới: chỉ khi KHÔNG có productCode và có productImage + productName
     if (!!(!productCode && productImage)) {
@@ -65,7 +66,7 @@ router.post('/', async (req, res) => {
         const randomNum = Math.floor(Math.random() * 100)
           .toString()
           .padStart(2, '0')
-        const generatedProductCode = `SP${timestamp}${randomNum}`
+        generatedProductCode = `SP${timestamp}${randomNum}` // Assign to existing variable
 
         // Add to products sheet
         const existingProducts = await readSheet(SHEET_TYPES.PRODUCTS, dateObj)
@@ -110,7 +111,7 @@ router.post('/', async (req, res) => {
       linkFb, // Column J
       contactInfo, // Column K
       note, // Column L
-      productCode || '', // Column M - Add productCode as new last column
+      productCode || generatedProductCode || '', // Column M - Add productCode as new last column
     ]
 
     console.log('Values array:', values)
@@ -203,34 +204,37 @@ router.put('/:rowIndex', async (req, res) => {
     }
 
     // Logic add sản phẩm mới khi update: chỉ khi KHÔNG có productCode và có productImage + productName mới
-    const dateObj = date ? new Date(date) : new Date()
-    if (!productCode && productImage && productName) {
+    const dateObj = date ? parseDateString(date) : new Date()
+    let generatedProductCode = '' // Declare variable at function scope
+
+    if (!!(!productCode && productImage)) {
       try {
         // Generate unique product code
         const timestamp = Date.now().toString().slice(-6)
         const randomNum = Math.floor(Math.random() * 100)
           .toString()
           .padStart(2, '0')
-        const generatedProductCode = `SP${timestamp}${randomNum}`
+        generatedProductCode = `SP${timestamp}${randomNum}` // Assign to existing variable
 
         // Add to products sheet
         const existingProducts = await readSheet(SHEET_TYPES.PRODUCTS, dateObj)
         const productNextRow = existingProducts.length + 2
         const productSheetName = getMonthlySheetName(SHEET_TYPES.PRODUCTS, dateObj)
         const productRange = `${productSheetName}!A${productNextRow}`
-
         const productValues = [
           formatDateForSheet(dateObj),
           generatedProductCode,
           productImage ? `=IMAGE("${productImage}")` : '',
           productName,
         ]
-
         await appendSheet(productRange, productValues)
-        console.log(`Added new product to sheet during update: ${generatedProductCode}`)
+        console.log(`Added new product to sheet: ${generatedProductCode}`)
       } catch (error) {
-        console.error('Failed to add product to sheet during update:', error)
-        // Continue with order update even if product addition fails
+        console.error('Failed to add product to sheet:', error)
+        res
+          .status(500)
+          .json({ error: 'Failed to add product to Google Sheet', errorMSG: error.message })
+        return
       }
     }
 
@@ -244,7 +248,7 @@ router.put('/:rowIndex', async (req, res) => {
     // Tạo sheet name theo format tháng/năm
     const sheetName = getMonthlySheetName(
       SHEET_TYPES[sheetType],
-      new Date(selectedDate.year, selectedDate.month - 1, 1),
+      month ? new Date(selectedDate.year, selectedDate.month - 1, 1) : dateObj,
     )
 
     // Row trong sheet (rowIndex + 4 vì sheet bắt đầu từ row 4)
@@ -267,7 +271,7 @@ router.put('/:rowIndex', async (req, res) => {
       linkFb, // Column J
       contactInfo, // Column K
       note, // Column L
-      productCode || '', // Column M - Add productCode as new last column
+      productCode || generatedProductCode || '', // Column M - Add productCode as new last column
     ]
 
     const response = await sheets.spreadsheets.values.update({
@@ -432,6 +436,46 @@ function formatDateForSheet(date) {
   // Format dạng: dd/MM/yyyy hoặc ISO nếu bạn config Sheet đọc kiểu khác
   const d = new Date(date)
   return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
+}
+
+// Helper function to parse DD/MM/YYYY date format
+function parseDateString(dateString) {
+  if (!dateString) return new Date()
+
+  // If it's already a valid Date object, return it
+  if (dateString instanceof Date) return dateString
+
+  // Check if it's in DD/MM/YYYY format
+  const ddmmyyyyPattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+  const match = dateString.match(ddmmyyyyPattern)
+
+  if (match) {
+    const [, day, month, year] = match
+    // Create date in local timezone by using Date constructor with separate parameters
+    // This avoids timezone issues with ISO string parsing
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0, 0)
+  }
+
+  // Check if it's in YYYY/MM/DD format
+  const yyyymmddPattern = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/
+  const match2 = dateString.match(yyyymmddPattern)
+
+  if (match2) {
+    const [, year, month, day] = match2
+    // Create date in local timezone by using Date constructor with separate parameters
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0, 0)
+  }
+
+  // Try default Date parsing (for other formats)
+  const parsedDate = new Date(dateString)
+
+  // If parsing failed, return current date
+  if (isNaN(parsedDate.getTime())) {
+    console.warn(`Invalid date format: ${dateString}, using current date`)
+    return new Date()
+  }
+
+  return parsedDate
 }
 
 // Đọc dữ liệu từ sheet

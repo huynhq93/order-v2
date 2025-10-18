@@ -77,8 +77,8 @@
                 v-model="editedOrder.date"
                 type="date"
                 placeholder="Chọn ngày"
-                format="D/M/YYYY"
-                value-format="D/M/YYYY"
+                format="DD/MM/YYYY"
+                value-format="DD/MM/YYYY"
                 class="w-full"
               />
               <div v-else class="field-value">{{ order.date || '-' }}</div>
@@ -101,6 +101,27 @@
         <!-- Product Info Section -->
         <div class="info-section">
           <h3 class="section-title">Thông tin sản phẩm</h3>
+          
+          <div class="field-row">
+            <div class="field-item">
+              <label class="field-label">Mã sản phẩm</label>
+              <el-input
+                v-if="isEditing"
+                v-model="editedOrder.productCode"
+                placeholder="Nhập mã sản phẩm để tự động load hình ảnh"
+                @blur="onProductCodeChange"
+                @keyup.enter="onProductCodeChange"
+                :loading="isSearchingProduct"
+              >
+                <template #suffix>
+                  <el-icon v-if="isSearchingProduct">
+                    <Loading />
+                  </el-icon>
+                </template>
+              </el-input>
+              <div v-else class="field-value">{{ order.productCode || '-' }}</div>
+            </div>
+          </div>
           
           <div class="field-row">
             <div class="field-item">
@@ -265,14 +286,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { formatCurrency } from '@/utils/format'
 import type { Order } from '@/types/order'
 import { ElMessage } from 'element-plus'
 import { uploadImage } from '@/api/images'
+import { productsAPI } from '@/api/products'
 import { 
   EditPen, 
-  Picture
+  Picture,
+  Loading
 } from '@element-plus/icons-vue'
 
 const props = defineProps<{
@@ -287,6 +310,7 @@ const emit = defineEmits<{
 
 const isEditing = ref(false)
 const saving = ref(false)
+const isSearchingProduct = ref(false)
 
 // Helper function to convert date format for date picker
 const formatDateForPicker = (dateStr: string) => {
@@ -321,6 +345,37 @@ const editedOrder = ref<Order>({
 const imageInput = ref<HTMLInputElement>()
 const imagePreview = ref('')
 const imageFile = ref<File | null>(null)
+
+// Product code search functionality
+const onProductCodeChange = async () => {
+  const productCode = editedOrder.value.productCode?.trim()
+  if (!productCode) return
+  
+  try {
+    isSearchingProduct.value = true
+    const result = await productsAPI.searchByCode(productCode)
+    
+    if (result.success && result.data) {
+      // Found existing product - load its data
+      editedOrder.value.productName = result.data.productName
+      if (result.data.productImage) {
+        imagePreview.value = result.data.productImage
+        editedOrder.value.productImage = result.data.productImage
+        // Clear file selection since we're using existing image
+        imageFile.value = null
+      }
+      // ElMessage.success('Đã tải thông tin sản phẩm từ database')
+    } else {
+      // Product not found - user can continue with manual entry
+      ElMessage.info('Không tìm thấy sản phẩm. Bạn có thể nhập thông tin và ảnh mới.')
+    }
+  } catch (error) {
+    console.error('Error searching product:', error)
+    ElMessage.error('Lỗi khi tìm kiếm sản phẩm')
+  } finally {
+    isSearchingProduct.value = false
+  }
+}
 
 // Reset editing state - to be called when modal is closed
 const resetEditingState = () => {
@@ -415,6 +470,9 @@ const handleImageChange = (event: Event) => {
       return
     }
 
+    // Clear productCode when uploading new image (this becomes a new product)
+    editedOrder.value.productCode = ''
+
     // Compress image before upload
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
@@ -491,6 +549,18 @@ const saveChanges = async () => {
     saving.value = false
   }
 }
+
+// Watch productCode changes for auto-search
+watch(() => editedOrder.value.productCode, (newProductCode) => {
+  if (newProductCode && newProductCode.trim() && isEditing.value) {
+    // Debounce the search to avoid too many API calls
+    const debounceTimer = setTimeout(() => {
+      onProductCodeChange()
+    }, 500)
+    
+    return () => clearTimeout(debounceTimer)
+  }
+})
 </script>
 
 <style scoped>
