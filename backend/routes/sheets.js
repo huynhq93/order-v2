@@ -17,11 +17,6 @@ const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
 router.get('/', async (req, res) => {
   try {
-    console.log('Environment check:')
-    console.log('GOOGLE_CLIENT_EMAIL:', process.env.GOOGLE_CLIENT_EMAIL ? 'Set' : 'Missing')
-    console.log('GOOGLE_PRIVATE_KEY:', process.env.GOOGLE_PRIVATE_KEY ? 'Set' : 'Missing')
-    console.log('GOOGLE_SHEET_ID:', process.env.GOOGLE_SHEET_ID ? 'Set' : 'Missing')
-
     let date = new Date()
     if (req.query.year && req.query.month) {
       date = new Date(Number.parseInt(req.query.year), Number.parseInt(req.query.month) - 1, 1)
@@ -63,7 +58,7 @@ router.post('/', async (req, res) => {
     const dateObj = date ? new Date(date) : new Date()
 
     // Logic add sản phẩm mới: chỉ khi KHÔNG có productCode và có productImage + productName
-    if (!!(!productCode && productImage && productName)) {
+    if (!!(!productCode && productImage)) {
       try {
         // Generate unique product code
         const timestamp = Date.now().toString().slice(-6)
@@ -294,6 +289,32 @@ router.put('/:rowIndex', async (req, res) => {
   }
 })
 
+// Debug route to check raw sheet data
+router.get('/debug/products', async (req, res) => {
+  try {
+    const currentDate = new Date()
+    const sheetName = getMonthlySheetName(SHEET_TYPES.PRODUCTS, currentDate)
+
+    console.log('Debug - Sheet name:', sheetName)
+
+    const products = await readSheet(SHEET_TYPES.PRODUCTS, currentDate)
+
+    res.json({
+      sheetName,
+      totalProducts: products.length,
+      products: products,
+      firstProduct: products.length > 0 ? products[0] : null,
+      firstProductKeys: products.length > 0 ? Object.keys(products[0]) : [],
+    })
+  } catch (error) {
+    console.error('Debug error:', error)
+    res.status(500).json({
+      error: 'Debug failed',
+      message: error.message,
+    })
+  }
+})
+
 // Route để tìm kiếm sản phẩm theo mã
 router.get('/products/search/:productCode', async (req, res) => {
   try {
@@ -302,12 +323,18 @@ router.get('/products/search/:productCode', async (req, res) => {
 
     // Tìm trong sheet sản phẩm tháng hiện tại
     const currentMonthProducts = await readSheet(SHEET_TYPES.PRODUCTS, currentDate)
-    // res.json({
-    //     success: true,
-    //     data: currentMonthProducts,
-    //   })
-    //   return;
-    let product = currentMonthProducts.find((p) => p[1] === productCode)
+
+    // Debug: kiểm tra structure của từng product
+    currentMonthProducts.forEach((product, index) => {
+      console.log(`Product ${index}:`, {
+        productCode: product.productCode,
+        productName: product.productName,
+        keys: Object.keys(product),
+      })
+    })
+
+    let product = currentMonthProducts.find((p) => p.productCode === productCode)
+    console.log('Found product:', product)
 
     if (!product) {
       // Tìm trong 2 tháng trước
