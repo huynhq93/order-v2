@@ -2,7 +2,7 @@ export const SHEET_TYPES = {
   ORDERS: 'BÁN HÀNG',
   INVENTORY: 'NHẬP HÀNG',
   COLLABORATORS: 'CÔNG TÁC VIÊN',
-  PRODUCTS: 'Sản phẩm',
+  PRODUCTS: 'SP',
 } as const
 
 // Type cho key

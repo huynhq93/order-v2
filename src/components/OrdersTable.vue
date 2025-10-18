@@ -533,6 +533,7 @@ const duplicateOrder = (order: Order) => {
       addOrderFormRef.value.populateForm({
         customerName: order.customerName,
         productName: order.productName,
+        productCode: order.productCode,
         color: order.color,
         size: order.size,
         quantity: order.quantity,

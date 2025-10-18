@@ -467,7 +467,7 @@ const populateForm = (orderData: Partial<Order>) => {
   form.value = {
     date: getCurrentDate(), // Always use current date for new orders
     customerName: orderData.customerName || '',
-    productCode: '', // Don't populate from existing order
+    productCode: orderData.productCode || '', 
     productName: orderData.productName || '',
     productImage: orderData.productImage || '',
     color: orderData.color || '',

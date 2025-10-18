@@ -100,17 +100,22 @@ router.post('/', async (req, res) => {
     const values = [
       formatDateForSheet(dateObj),
       customerName,
-      productImage ? `=IMAGE("${productImage}")` : '',
-      productName,
-      color,
-      size,
-      quantity,
-      total,
-      status,
-      linkFb,
-      contactInfo,
-      note,
+      productImage ? `=IMAGE("${productImage}")` : '', // Column C - Product Image (keep current structure)
+      productName, // Column D - Product Name (keep current structure)
+      color, // Column E
+      size, // Column F
+      quantity, // Column G
+      total, // Column H
+      status, // Column I
+      linkFb, // Column J
+      contactInfo, // Column K
+      note, // Column L
+      productCode || '', // Column M - Add productCode as new last column
     ]
+
+    console.log('Values array:', values)
+    console.log('Values length:', values.length)
+    console.log('ProductCode value:', productCode)
 
     const response = await appendSheet(range, values)
     res.json({ message: 'Order added successfully', data: response })
@@ -244,7 +249,7 @@ router.put('/:rowIndex', async (req, res) => {
 
     // Row trong sheet (rowIndex + 4 vì sheet bắt đầu từ row 4)
     const targetRow = parseInt(rowIndex) + 4
-    const range = `${sheetName}!A${targetRow}:L${targetRow}`
+    const range = `${sheetName}!A${targetRow}:M${targetRow}` // Extend to column M
 
     console.log('Updating range:', range)
 
@@ -252,16 +257,17 @@ router.put('/:rowIndex', async (req, res) => {
     const values = [
       date,
       customerName,
-      productImage ? `=IMAGE("${productImage}")` : '',
-      productName,
-      color,
-      size,
-      quantity,
-      total,
-      status,
-      linkFb,
-      contactInfo,
-      note,
+      productImage ? `=IMAGE("${productImage}")` : '', // Column C - Product Image (keep current)
+      productName, // Column D - Product Name (keep current)
+      color, // Column E
+      size, // Column F
+      quantity, // Column G
+      total, // Column H
+      status, // Column I
+      linkFb, // Column J
+      contactInfo, // Column K
+      note, // Column L
+      productCode || '', // Column M - Add productCode as new last column
     ]
 
     const response = await sheets.spreadsheets.values.update({
@@ -464,16 +470,17 @@ async function readSheet(baseSheetName, date) {
             rowIndex: index,
             date: parseGoogleSheetDate(cells[0]),
             customerName: getCellString(cells[1]),
-            productImage: extractImageUrl(getCellString(cells[2])),
-            productName: getCellString(cells[3]),
-            color: getCellString(cells[4]),
-            size: getCellString(cells[5]),
-            quantity: getCellString(cells[6]),
-            total: getCellString(cells[7]),
-            status: getCellString(cells[8]),
-            linkFb: getCellString(cells[9]),
-            contactInfo: getCellString(cells[10]),
-            note: getCellString(cells[11]),
+            productImage: extractImageUrl(getCellString(cells[2])), // Column C - Product Image (current)
+            productName: getCellString(cells[3]), // Column D - Product Name (current)
+            color: getCellString(cells[4]), // Column E
+            size: getCellString(cells[5]), // Column F
+            quantity: getCellString(cells[6]), // Column G
+            total: getCellString(cells[7]), // Column H
+            status: getCellString(cells[8]), // Column I
+            linkFb: getCellString(cells[9]), // Column J
+            contactInfo: getCellString(cells[10]), // Column K
+            note: getCellString(cells[11]), // Column L
+            productCode: getCellString(cells[12]) || '', // Column M - Product Code (new)
             month: `${date.getMonth() + 1}/${date.getFullYear()}`,
           }
         })
@@ -488,16 +495,17 @@ async function readSheet(baseSheetName, date) {
             rowIndex: index,
             date: parseGoogleSheetDate(cells[0]),
             customerName: getCellString(cells[1]),
-            productImage: extractImageUrl(getCellString(cells[2])),
-            productName: getCellString(cells[3]),
-            color: getCellString(cells[4]),
-            size: getCellString(cells[5]),
-            quantity: getCellString(cells[6]),
-            total: getCellString(cells[7]),
-            status: getCellString(cells[8]),
-            linkFb: getCellString(cells[9]),
-            contactInfo: getCellString(cells[10]),
-            note: getCellString(cells[11]),
+            productImage: extractImageUrl(getCellString(cells[2])), // Column C - Product Image (current)
+            productName: getCellString(cells[3]), // Column D - Product Name (current)
+            color: getCellString(cells[4]), // Column E
+            size: getCellString(cells[5]), // Column F
+            quantity: getCellString(cells[6]), // Column G
+            total: getCellString(cells[7]), // Column H
+            status: getCellString(cells[8]), // Column I
+            linkFb: getCellString(cells[9]), // Column J
+            contactInfo: getCellString(cells[10]), // Column K
+            note: getCellString(cells[11]), // Column L
+            productCode: getCellString(cells[12]) || '', // Column M - Product Code (new)
             month: `${date.getMonth() + 1}/${date.getFullYear()}`,
           }
         })
