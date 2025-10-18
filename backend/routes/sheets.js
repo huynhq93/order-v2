@@ -46,6 +46,7 @@ router.post('/', async (req, res) => {
     const {
       date,
       customerName,
+      productCode,
       productImage,
       productName,
       color,
@@ -60,6 +61,38 @@ router.post('/', async (req, res) => {
 
     console.log('req.query.type:', req.query.type)
     const dateObj = date ? new Date(date) : new Date()
+
+    // Logic add sản phẩm mới: chỉ khi KHÔNG có productCode và có productImage + productName
+    if (!!(!productCode && productImage && productName)) {
+      try {
+        // Generate unique product code
+        const timestamp = Date.now().toString().slice(-6)
+        const randomNum = Math.floor(Math.random() * 100)
+          .toString()
+          .padStart(2, '0')
+        const generatedProductCode = `SP${timestamp}${randomNum}`
+
+        // Add to products sheet
+        const existingProducts = await readSheet(SHEET_TYPES.PRODUCTS, dateObj)
+        const productNextRow = existingProducts.length + 2
+        const productSheetName = getMonthlySheetName(SHEET_TYPES.PRODUCTS, dateObj)
+        const productRange = `${productSheetName}!A${productNextRow}`
+        const productValues = [
+          formatDateForSheet(dateObj),
+          generatedProductCode,
+          productImage ? `=IMAGE("${productImage}")` : '',
+          productName,
+        ]
+
+        await appendSheet(productRange, productValues)
+        console.log(`Added new product to sheet: ${generatedProductCode}`)
+      } catch (error) {
+        console.error('Failed to add product to sheet:', error)
+        res.status(500).json({ error: 'Failed to add product to Google Sheet' })
+        return
+        // Continue with order creation even if product addition fails
+      }
+    }
 
     const result = await readSheet(SHEET_TYPES[req.query.type], dateObj)
     let nextRow = result.length + 4
@@ -88,7 +121,7 @@ router.post('/', async (req, res) => {
     res.json({ message: 'Order added successfully', data: response })
   } catch (error) {
     console.error('Lỗi khi thêm order:', error)
-    res.status(500).json({ error: 'Failed to add order to Google Sheet' })
+    res.status(500).json({ error: 'Failed to add order 1 to Google Sheet' })
   }
 })
 
@@ -148,6 +181,7 @@ router.put('/:rowIndex', async (req, res) => {
     const {
       date,
       customerName,
+      productCode,
       productImage,
       productName,
       color,
@@ -166,6 +200,38 @@ router.put('/:rowIndex', async (req, res) => {
 
     if (!rowIndex || rowIndex === undefined) {
       return res.status(400).json({ error: 'Missing rowIndex parameter' })
+    }
+
+    // Logic add sản phẩm mới khi update: chỉ khi KHÔNG có productCode và có productImage + productName mới
+    const dateObj = date ? new Date(date) : new Date()
+    if (!productCode && productImage && productName) {
+      try {
+        // Generate unique product code
+        const timestamp = Date.now().toString().slice(-6)
+        const randomNum = Math.floor(Math.random() * 100)
+          .toString()
+          .padStart(2, '0')
+        const generatedProductCode = `SP${timestamp}${randomNum}`
+
+        // Add to products sheet
+        const existingProducts = await readSheet(SHEET_TYPES.PRODUCTS, dateObj)
+        const productNextRow = existingProducts.length + 2
+        const productSheetName = getMonthlySheetName(SHEET_TYPES.PRODUCTS, dateObj)
+        const productRange = `${productSheetName}!A${productNextRow}`
+
+        const productValues = [
+          formatDateForSheet(dateObj),
+          generatedProductCode,
+          productImage ? `=IMAGE("${productImage}")` : '',
+          productName,
+        ]
+
+        await appendSheet(productRange, productValues)
+        console.log(`Added new product to sheet during update: ${generatedProductCode}`)
+      } catch (error) {
+        console.error('Failed to add product to sheet during update:', error)
+        // Continue with order update even if product addition fails
+      }
     }
 
     // Extract month/year from the order's month field (format: "10/2025")
@@ -224,6 +290,107 @@ router.put('/:rowIndex', async (req, res) => {
     res.status(500).json({
       error: 'Failed to update order',
       message: error.message,
+    })
+  }
+})
+
+// Route để tìm kiếm sản phẩm theo mã
+router.get('/products/search/:productCode', async (req, res) => {
+  try {
+    const { productCode } = req.params
+    const currentDate = new Date()
+
+    // Tìm trong sheet sản phẩm tháng hiện tại
+    const currentMonthProducts = await readSheet(SHEET_TYPES.PRODUCTS, currentDate)
+    // res.json({
+    //     success: true,
+    //     data: currentMonthProducts,
+    //   })
+    //   return;
+    let product = currentMonthProducts.find((p) => p[1] === productCode)
+
+    if (!product) {
+      // Tìm trong 2 tháng trước
+      for (let i = 1; i <= 2; i++) {
+        const pastDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1)
+        try {
+          const pastProducts = await readSheet(SHEET_TYPES.PRODUCTS, pastDate)
+          product = pastProducts.find((p) => p.productCode === productCode)
+          if (product) break
+        } catch (error) {
+          console.log(`No sheet found for ${pastDate.getMonth() + 1}/${pastDate.getFullYear()}`)
+        }
+      }
+    }
+
+    if (product) {
+      res.json({
+        success: true,
+        data: product,
+      })
+    } else {
+      res.json({
+        success: false,
+        message: 'Không tìm thấy sản phẩm với mã này',
+      })
+    }
+  } catch (error) {
+    console.error('Lỗi khi tìm kiếm sản phẩm:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to search product',
+    })
+  }
+})
+
+// Route để thêm sản phẩm mới vào sheet
+router.post('/products', async (req, res) => {
+  try {
+    const { productCode, productImage, productName } = req.body
+
+    if (!productCode || !productImage || !productName) {
+      return res.status(400).json({
+        error: 'Missing required fields: productCode, productImage, productName',
+      })
+    }
+
+    const currentDate = new Date()
+
+    // Kiểm tra xem sản phẩm đã tồn tại chưa
+    const existingProducts = await readSheet(SHEET_TYPES.PRODUCTS, currentDate)
+    const existingProduct = existingProducts.find((p) => p.productCode === productCode)
+
+    if (existingProduct) {
+      return res.json({
+        success: true,
+        message: 'Sản phẩm đã tồn tại',
+        data: existingProduct,
+      })
+    }
+
+    // Thêm sản phẩm mới
+    const nextRow = existingProducts.length + 2
+    const sheetName = getMonthlySheetName(SHEET_TYPES.PRODUCTS, currentDate)
+    const range = `${sheetName}!A${nextRow}`
+
+    const values = [
+      formatDateForSheet(currentDate),
+      productCode,
+      productImage ? `=IMAGE("${productImage}")` : '',
+      productName,
+    ]
+
+    const response = await appendSheet(range, values)
+
+    res.json({
+      success: true,
+      message: 'Đã thêm sản phẩm mới vào sheet',
+      data: response,
+    })
+  } catch (error) {
+    console.error('Lỗi khi thêm sản phẩm:', error)
+    res.status(500).json({
+      error: 'Failed to add product to sheet',
     })
   }
 })
@@ -308,6 +475,22 @@ async function readSheet(baseSheetName, date) {
           }
         })
         .filter((item) => item.productName) // Filter out empty rows
+    } else if (baseSheetName === SHEET_TYPES.PRODUCTS) {
+      // Skip the first row (header)
+      return rows
+        .slice(1)
+        .map((row, index) => {
+          const cells = row.values || []
+          return {
+            rowIndex: index,
+            date: parseGoogleSheetDate(cells[0]),
+            productCode: getCellString(cells[1]),
+            productImage: extractImageUrl(getCellString(cells[2])),
+            productName: getCellString(cells[3]),
+            month: `${date.getMonth() + 1}/${date.getFullYear()}`,
+          }
+        })
+        .filter((item) => item.productCode) // Filter out empty rows
     }
     return []
   } catch (error) {
@@ -395,6 +578,7 @@ const SHEET_TYPES = {
   ORDERS: 'BÁN HÀNG',
   INVENTORY: 'NHẬP HÀNG',
   CTV_ORDERS: 'CTV',
+  PRODUCTS: 'SP',
 }
 
 module.exports = router
@@ -552,4 +736,4 @@ module.exports = router
 //   formatMonthYear(date = new Date()) {
 //     return `${date.getMonth() + 1}/${date.getFullYear()}`
 //   }
-// }; 
+// };

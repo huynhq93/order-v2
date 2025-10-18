@@ -77,6 +77,26 @@
             
             <div class="field-row">
               <div class="field-item">
+                <el-form-item label="Mã sản phẩm" prop="productCode">
+                  <el-input 
+                    v-model="form.productCode" 
+                    placeholder="Nhập mã sản phẩm để tự động load hình ảnh"
+                    @blur="onProductCodeChange"
+                    @keyup.enter="onProductCodeChange"
+                    :loading="isSearchingProduct"
+                  >
+                    <template #suffix>
+                      <el-icon v-if="isSearchingProduct">
+                        <Loading />
+                      </el-icon>
+                    </template>
+                  </el-input>
+                </el-form-item>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-item">
                 <el-form-item label="Tên sản phẩm" prop="productName">
                   <el-input v-model="form.productName" placeholder="Nhập tên sản phẩm" />
                 </el-form-item>
@@ -200,9 +220,11 @@ import type { Order } from '@/types/order'
 import { ElMessage } from 'element-plus'
 import { useOrdersStore } from '@/stores/orders'
 import { uploadImage } from '@/api/images'
+import { productsAPI } from '@/api/products'
 import { 
   EditPen, 
-  Picture
+  Picture,
+  Loading
 } from '@element-plus/icons-vue'
 
 const emit = defineEmits<{
@@ -231,6 +253,7 @@ const getCurrentDate = () => {
 const form = ref({
   date: getCurrentDate(),
   customerName: '',
+  productCode: '',
   productName: '',
   productImage: '',
   color: '',
@@ -245,6 +268,7 @@ const form = ref({
 
 const imagePreview = ref('')
 const file = ref<File | undefined>(undefined)
+const isSearchingProduct = ref(false)
 
 const rules: FormRules = {
   date: [{ required: true, message: 'Vui lòng chọn ngày', trigger: 'change' }],
@@ -267,6 +291,9 @@ const onImageSelect = (event: Event) => {
   const target = event.target as HTMLInputElement
   if (target.files && target.files[0]) {
     file.value = target.files[0]
+    
+    // Clear product code when uploading new image (this becomes a new product)
+    form.value.productCode = ''
     
     // Create preview URL
     const reader = new FileReader()
@@ -321,8 +348,35 @@ const compressImage = (file: File): Promise<File> => {
   })
 }
 
-const handleFileChange = (e: Event) => {
-  onImageSelect(e)
+// Product code search functionality
+const onProductCodeChange = async () => {
+  const productCode = form.value.productCode.trim()
+  if (!productCode) return
+  
+  try {
+    isSearchingProduct.value = true
+    const result = await productsAPI.searchByCode(productCode)
+    
+    if (result.success && result.data) {
+      // Found existing product - load its data
+      form.value.productName = result.data.productName
+      if (result.data.productImage) {
+        imagePreview.value = result.data.productImage
+        form.value.productImage = result.data.productImage
+        // Clear file selection since we're using existing image
+        file.value = undefined
+      }
+      // ElMessage.success('Đã tải thông tin sản phẩm từ database')
+    } else {
+      // Product not found - user can continue with manual entry
+      ElMessage.info('Không tìm thấy sản phẩm. Bạn có thể nhập thông tin và ảnh mới.')
+    }
+  } catch (error) {
+    console.error('Error searching product:', error)
+    ElMessage.error('Lỗi khi tìm kiếm sản phẩm')
+  } finally {
+    isSearchingProduct.value = false
+  }
 }
 
 const handleSubmit = async () => {
@@ -334,7 +388,7 @@ const handleSubmit = async () => {
     
     submitting.value = true
     
-    let imageUrl = ''
+    let imageUrl = form.value.productImage // Use existing image if available
     if (file.value) {
       try {
         // Check file size (5MB limit)
@@ -353,6 +407,10 @@ const handleSubmit = async () => {
         } else if (typeof uploadResponse === 'string') {
           imageUrl = uploadResponse
         }
+
+        // Logic add sản phẩm mới:
+        // - Nếu có productCode: đây là sản phẩm có sẵn, không add vào sheet sản phẩm
+        // - Nếu KHÔNG có productCode: đây là sản phẩm mới, backend sẽ tự động add vào sheet sản phẩm
       } catch (error) {
         console.error('Image upload failed:', error)
         ElMessage.error('Failed to upload image')
@@ -362,7 +420,9 @@ const handleSubmit = async () => {
     
     const orderData = {
       ...form.value,
-      productImage: imageUrl || form.value.productImage
+      productImage: imageUrl || form.value.productImage,
+      // Chỉ gửi productCode nếu người dùng đã nhập (để backend biết đây là sản phẩm có sẵn)
+      productCode: form.value.productCode.trim() || undefined
     }
     
     await orderStore.addOrder(orderData, props.customerType)
@@ -384,6 +444,7 @@ const resetForm = () => {
   form.value = {
     date: getCurrentDate(),
     customerName: '',
+    productCode: '',
     productName: '',
     productImage: '',
     color: '',
@@ -406,6 +467,7 @@ const populateForm = (orderData: Partial<Order>) => {
   form.value = {
     date: getCurrentDate(), // Always use current date for new orders
     customerName: orderData.customerName || '',
+    productCode: '', // Don't populate from existing order
     productName: orderData.productName || '',
     productImage: orderData.productImage || '',
     color: orderData.color || '',

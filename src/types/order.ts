@@ -2,6 +2,7 @@ export interface Order {
   rowIndex: number
   date: string
   customerName: string
+  productCode?: string
   productImage: string
   productName: string
   color: string
