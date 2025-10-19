@@ -23,6 +23,7 @@ export interface Order {
   // Metadata for status updates
   monthForUpdate?: number
   yearForUpdate?: number
+  sheetType?: 'customer' | 'ctv'
 }
 
 export type OrderStatus = 'NHẬN ĐƠN' | 'ĐANG GIAO' | 'ĐANG CHỜ GIAO' | 'Hủy' 

@@ -169,6 +169,7 @@ import {
   Select, 
   InfoFilled
 } from '@element-plus/icons-vue'
+import { ORDER_STATUSES, getOrderStatusType } from '@/constants/orderStatus'
 
 const props = defineProps<{
   selectedDate: { month: number; year: number }
@@ -191,8 +192,8 @@ const selectedOrders = ref<Order[]>([])
 // Computed
 const pendingOrders = computed(() => {
   return store.orders.filter(order => 
-    order.status === 'ĐANG CHỜ GIAO' || 
-    order.status === 'ĐANG VẬN CHUYỂN'
+    order.status === ORDER_STATUSES.SALES.DANG_CHO_GIAO || 
+    order.status === ORDER_STATUSES.SALES.HANG_VE
   )
 })
 
@@ -248,7 +249,7 @@ const confirmBatchUpdate = async () => {
         order.rowIndex,
         '', // no management code for this case
         shippingCode,
-        'ĐANG VẬN CHUYỂN',
+        ORDER_STATUSES.SALES.DANG_GIAO,
         props.selectedDate,
         customerType.value
       )
@@ -271,20 +272,7 @@ const confirmBatchUpdate = async () => {
   }
 }
 
-const getStatusType = (status: string) => {
-  switch (status) {
-    case 'NHẬN ĐƠN':
-      return 'info'
-    case 'ĐANG CHỜ GIAO':
-      return 'warning'
-    case 'ĐANG GIAO':
-      return 'primary'
-    case 'HOÀN THÀNH':
-      return 'success'
-    default:
-      return 'info'
-  }
-}
+const getStatusType = getOrderStatusType
 
 // Watch customer type changes
 watch(customerType, () => {

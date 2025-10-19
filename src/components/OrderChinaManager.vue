@@ -4,16 +4,14 @@
       <template #header>
         <div class="header-container">
           <div class="header-row">
-            <h3 class="title">Quản lý mã vận đơn</h3>
+            <h3 class="title">Quản lý nhập hàng</h3>
             <div class="header-actions">
-              <el-select
-                v-model="customerType"
-                size="default"
-                style="width: 120px; margin-right: 16px;"
-              >
-                <el-option label="Khách" value="customer" />
-                <el-option label="CTV" value="ctv" />
-              </el-select>
+              <div class="sheet-selector">
+                <el-checkbox-group v-model="selectedSheets" @change="debouncedRefresh">
+                  <el-checkbox label="customer">Bán hàng</el-checkbox>
+                  <el-checkbox label="ctv">CTV</el-checkbox>
+                </el-checkbox-group>
+              </div>
               <el-button 
                 type="primary" 
                 @click="refreshData"
@@ -31,8 +29,11 @@
               <el-input
                 v-model="newShippingCode"
                 placeholder="Nhập mã vận đơn (VD: VD123)"
-                style="width: 200px;"
+                style="flex: 1; max-width: 300px;"
                 @keyup.enter="addShippingCode"
+                size="default"
+                maxlength="50"
+                clearable
               >
                 <template #prefix>
                   <el-icon><Van /></el-icon>
@@ -42,8 +43,9 @@
                 type="success" 
                 @click="addShippingCode"
                 :disabled="!newShippingCode.trim()"
+                size="default"
               >
-                Thêm mã vận đơn
+                Thêm
               </el-button>
             </div>
             
@@ -64,52 +66,69 @@
           </div>
 
           <!-- Order Management Info -->
-          <div class="order-management-section" v-if="shippingCodes.length > 0">
+          <div class="order-management-section">
             <h4>Thông tin quản lý đơn hàng</h4>
             <div class="management-form">
               <el-row :gutter="16">
-                <el-col :span="8">
+                <!-- Ghi chú - width nhỏ hơn -->
+                <el-col :xs="24" :sm="12" :md="14" :lg="14">
                   <el-form-item label="Ghi chú">
                     <el-input
                       v-model="managementInfo.note"
                       placeholder="Nhập ghi chú"
                       type="textarea"
-                      :rows="2"
+                      :rows="4"
+                      maxlength="200"
+                      show-word-limit
                     />
                   </el-form-item>
                 </el-col>
-                <el-col :span="8">
+                
+                <!-- Right column -->
+                <el-col :xs="24" :sm="12" :md="10" :lg="10">
+                  <!-- Ngày chốt mua -->
                   <el-form-item label="Ngày chốt mua">
                     <el-date-picker
                       v-model="managementInfo.orderDate"
                       type="date"
-                      placeholder="Chọn ngày chốt mua"
+                      placeholder="Chọn ngày"
                       format="DD/MM/YYYY"
                       value-format="DD/MM/YYYY"
                       style="width: 100%"
+                      size="default"
                     />
                   </el-form-item>
-                </el-col>
-                <el-col :span="4">
-                  <el-form-item label="Số lượng">
-                    <el-input-number
-                      v-model="managementInfo.quantity"
-                      :min="1"
-                      placeholder="Số lượng"
-                      style="width: 100%"
-                    />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="4">
-                  <el-form-item label="Giá nhập">
-                    <el-input-number
-                      v-model="managementInfo.importPrice"
-                      :min="0"
-                      :precision="0"
-                      placeholder="Giá nhập"
-                      style="width: 100%"
-                    />
-                  </el-form-item>
+                  
+                  <!-- Số lượng và Giá nhập cùng 1 hàng -->
+                  <el-row :gutter="12" style="margin-top: 12px;">
+                    <el-col :span="12">
+                      <el-form-item label="Số lượng">
+                        <el-input-number
+                          v-model="managementInfo.quantity"
+                          :min="1"
+                          :max="9999"
+                          placeholder="SL"
+                          style="width: 100%"
+                          size="default"
+                          controls-position="right"
+                        />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="Giá nhập">
+                        <el-input-number
+                          v-model="managementInfo.importPrice"
+                          :min="0"
+                          :max="99999999"
+                          :precision="0"
+                          placeholder="Giá"
+                          style="width: 100%"
+                          size="default"
+                          controls-position="right"
+                        />
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
                 </el-col>
               </el-row>
             </div>
@@ -158,7 +177,7 @@
             :data="availableOrders"
             v-loading="loading"
             @selection-change="handleSelectionChange"
-            row-key="rowIndex"
+            row-key="uniqueId"
             style="width: 100%"
             max-height="500"
           >
@@ -168,11 +187,34 @@
               <template #default="{ row }">
                 <el-radio
                   v-model="representativeOrderIndex"
-                  :label="row.rowIndex"
+                  :label="row.uniqueId"
                   @change="handleRepresentativeChange(row)"
                 >
                   &nbsp;
                 </el-radio>
+              </template>
+            </el-table-column>
+            
+            <el-table-column label="Mã vận đơn" min-width="100" v-if="shippingCodes.length > 0">
+              <template #default="{ row }">
+                <div v-if="isOrderSelected(row)">
+                  <el-radio-group 
+                    v-model="orderShippingCodes[row.uniqueId]"
+                    @change="handleShippingCodeChange"
+                  >
+                    <el-radio
+                      v-for="code in shippingCodes"
+                      :key="code"
+                      :label="code"
+                      class="shipping-radio"
+                    >
+                      {{ code }}
+                    </el-radio>
+                  </el-radio-group>
+                </div>
+                <!-- <div v-else class="no-selection-text">
+                  Chưa chọn
+                </div> -->
               </template>
             </el-table-column>
             
@@ -208,24 +250,6 @@
               </template>
             </el-table-column>
             
-            <el-table-column label="Mã vận đơn" width="200" v-if="shippingCodes.length > 0">
-              <template #default="{ row }">
-                <el-radio-group 
-                  v-model="orderShippingCodes[row.rowIndex]"
-                  @change="handleShippingCodeChange(row)"
-                >
-                  <el-radio
-                    v-for="code in shippingCodes"
-                    :key="code"
-                    :label="code"
-                    class="shipping-radio"
-                  >
-                    {{ code }}
-                  </el-radio>
-                </el-radio-group>
-              </template>
-            </el-table-column>
-            
             <el-table-column prop="total" label="Tổng tiền" width="120">
               <template #default="{ row }">
                 <span class="price">{{ formatCurrency(row.total) }}</span>
@@ -243,7 +267,7 @@
         </div>
 
         <!-- Action Buttons -->
-        <div class="action-row" v-if="selectedOrders.length > 0 && shippingCodes.length > 0">
+        <div class="action-row" v-if="selectedOrders.length > 0">
           <div class="selected-info">
             <el-icon><InfoFilled /></el-icon>
             Đã chọn {{ selectedOrders.length }} đơn hàng | Mã quản lý: <strong>{{ generatedManagementCode }}</strong>
@@ -273,15 +297,22 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useOrdersStore } from '@/stores/orders'
 import { formatCurrency } from '@/utils/format'
 import type { Order } from '@/types/order'
+
+// Extended Order type with unique ID for multi-sheet support
+interface ExtendedOrder extends Order {
+  uniqueId: string
+  sheetType: string
+}
 import { ElMessage } from 'element-plus'
 import { 
   Refresh, 
   Van,
   ShoppingBag,
-  Clock, 
   Select, 
   InfoFilled
 } from '@element-plus/icons-vue'
+import { ORDER_STATUSES, getOrderStatusType } from '@/constants/orderStatus'
+import { createOrdChinaRecord } from '@/api/ordchina'
 
 const props = defineProps<{
   selectedDate: { month: number; year: number }
@@ -295,14 +326,28 @@ const store = useOrdersStore()
 const tableRef = ref()
 
 // Reactive data
-const customerType = ref<'customer' | 'ctv'>('customer')
+const selectedSheets = ref<string[]>(['customer', 'ctv'])
 const loading = ref(false)
 const updating = ref(false)
 const newShippingCode = ref('')
 const shippingCodes = ref<string[]>([])
-const selectedOrders = ref<Order[]>([])
-const orderShippingCodes = ref<Record<number, string>>({})
-const representativeOrderIndex = ref<number | null>(null)
+const selectedOrders = ref<ExtendedOrder[]>([])
+const orderShippingCodes = ref<Record<string, string>>({})
+const representativeOrderIndex = ref<string | null>(null)
+const allOrders = ref<ExtendedOrder[]>([])
+
+// Debounce timer
+let refreshTimer: NodeJS.Timeout | null = null
+
+// Debounced refresh to avoid too many API calls
+const debouncedRefresh = () => {
+  if (refreshTimer) {
+    clearTimeout(refreshTimer)
+  }
+  refreshTimer = setTimeout(() => {
+    refreshData()
+  }, 300) // 300ms delay
+}
 
 // Management info
 const managementInfo = ref({
@@ -314,9 +359,8 @@ const managementInfo = ref({
 
 // Computed
 const availableOrders = computed(() => {
-  return store.orders.filter(order => 
-    order.status === 'ĐANG CHỜ GIAO' || 
-    order.status === 'ĐANG VẬN CHUYỂN'
+  return allOrders.value.filter(order => 
+    order.status === ORDER_STATUSES.SALES.NHAN_DON
   )
 })
 
@@ -332,8 +376,31 @@ const generatedManagementCode = computed(() => {
 const refreshData = async () => {
   loading.value = true
   try {
-    await store.fetchOrders(props.selectedDate, customerType.value)
-  } catch {
+    // Clear existing data first
+    allOrders.value = []
+    
+    // Create a temporary array to collect all orders
+    const tempOrders: ExtendedOrder[] = []
+    
+    // Fetch orders from selected sheets
+    for (const sheetType of selectedSheets.value) {
+      await store.fetchOrders(props.selectedDate, sheetType as 'customer' | 'ctv')
+      // Add sheet type info and unique ID to orders
+      const ordersWithSheetType = store.orders.map(order => ({
+        ...order,
+        sheetType,
+        uniqueId: `${sheetType}-${order.rowIndex}` // Create unique ID
+      })) as ExtendedOrder[]
+      
+      tempOrders.push(...ordersWithSheetType)
+    }
+    
+    // Set all orders at once to avoid duplication
+    allOrders.value = tempOrders
+    
+    console.log('Loaded orders:', allOrders.value.map(o => ({ uniqueId: o.uniqueId, customerName: o.customerName, sheetType: o.sheetType })))
+  } catch (error) {
+    console.error('Error loading data:', error)
     ElMessage.error('Lỗi khi tải dữ liệu')
   } finally {
     loading.value = false
@@ -349,8 +416,17 @@ const addShippingCode = () => {
     return
   }
   
+  const wasEmpty = shippingCodes.value.length === 0
   shippingCodes.value.push(code)
   newShippingCode.value = ''
+  
+  // If this is the first shipping code, assign it to all selected orders
+  if (wasEmpty) {
+    selectedOrders.value.forEach(order => {
+      orderShippingCodes.value[order.uniqueId] = code
+    })
+  }
+  
   ElMessage.success(`Đã thêm mã vận đơn: ${code}`)
 }
 
@@ -360,46 +436,86 @@ const removeShippingCode = (code: string) => {
     shippingCodes.value.splice(index, 1)
     
     // Remove shipping code from orders
-    Object.keys(orderShippingCodes.value).forEach(orderIndex => {
-      if (orderShippingCodes.value[parseInt(orderIndex)] === code) {
-        delete orderShippingCodes.value[parseInt(orderIndex)]
+    Object.keys(orderShippingCodes.value).forEach(uniqueId => {
+      if (orderShippingCodes.value[uniqueId] === code) {
+        delete orderShippingCodes.value[uniqueId]
       }
     })
   }
 }
 
-const handleSelectionChange = (selection: Order[]) => {
+const handleSelectionChange = (selection: ExtendedOrder[]) => {
+  const previousSelection = selectedOrders.value
   selectedOrders.value = selection
   
-  // Set first selected order as representative if none selected
-  if (selection.length > 0 && !representativeOrderIndex.value) {
-    representativeOrderIndex.value = selection[0].rowIndex
+  // Handle newly selected orders
+  const newlySelected = selection.filter(order => 
+    !previousSelection.some(prev => prev.uniqueId === order.uniqueId)
+  )
+  
+  // Handle deselected orders
+  const deselected = previousSelection.filter(prev => 
+    !selection.some(order => order.uniqueId === prev.uniqueId)
+  )
+  
+  // Auto-assign first shipping code to newly selected orders
+  newlySelected.forEach(order => {
+    if (shippingCodes.value.length > 0) {
+      orderShippingCodes.value[order.uniqueId] = shippingCodes.value[0]
+    }
+  })
+  
+  // Remove shipping codes for deselected orders
+  deselected.forEach(order => {
+    delete orderShippingCodes.value[order.uniqueId]
+    
+    // If this was the representative order, clear it
+    if (representativeOrderIndex.value === order.uniqueId) {
+      representativeOrderIndex.value = null
+    }
+  })
+  
+  // Set representative order
+  if (selection.length > 0) {
+    // If no representative or current representative is not in selection
+    if (!representativeOrderIndex.value || 
+        !selection.some(order => order.uniqueId === representativeOrderIndex.value)) {
+      representativeOrderIndex.value = selection[0].uniqueId
+    }
+  } else {
+    // No orders selected, clear representative
+    representativeOrderIndex.value = null
   }
 }
 
-const handleRepresentativeChange = (row: Order) => {
+const handleRepresentativeChange = (row: ExtendedOrder) => {
   // Auto-select the order when it's chosen as representative
-  const isSelected = selectedOrders.value.some(order => order.rowIndex === row.rowIndex)
+  const isSelected = selectedOrders.value.some(order => order.uniqueId === row.uniqueId)
   if (!isSelected) {
     selectedOrders.value.push(row)
     tableRef.value?.toggleRowSelection(row, true)
+    
+    // Auto-assign first shipping code if available
+    if (shippingCodes.value.length > 0) {
+      orderShippingCodes.value[row.uniqueId] = shippingCodes.value[0]
+    }
   }
 }
 
-const handleShippingCodeChange = (row: Order) => {
-  // Auto-select the order when shipping code is chosen
-  const isSelected = selectedOrders.value.some(order => order.rowIndex === row.rowIndex)
-  if (!isSelected) {
-    selectedOrders.value.push(row)
-    tableRef.value?.toggleRowSelection(row, true)
-  }
+const isOrderSelected = (row: ExtendedOrder) => {
+  return selectedOrders.value.some(order => order.uniqueId === row.uniqueId)
+}
+
+const handleShippingCodeChange = () => {
+  // No need to auto-select since radio only shows when already selected
+  // Just handle the shipping code change
 }
 
 const clearSelection = () => {
-  tableRef.value?.clearSelection()
   selectedOrders.value = []
   orderShippingCodes.value = {}
   representativeOrderIndex.value = null
+  tableRef.value?.clearSelection()
 }
 
 const processOrders = async () => {
@@ -409,28 +525,47 @@ const processOrders = async () => {
   }
 
   updating.value = true
+  console.log('Starting processOrders...')
+  
   try {
     const managementCode = generatedManagementCode.value
     const representativeOrder = selectedOrders.value.find(order => 
-      order.rowIndex === representativeOrderIndex.value
+      order.uniqueId === representativeOrderIndex.value
     ) || selectedOrders.value[0]
+
+    console.log('Management code:', managementCode)
+    console.log('Representative order:', representativeOrder)
+    console.log('Selected date:', props.selectedDate)
 
     // 1. Create record in ORDCHINA sheet
     await createOrderChinaRecord(managementCode, representativeOrder)
+    console.log('ORDCHINA record created successfully')
 
     // 2. Update orders in main sheet
+    console.log('Step 2: Updating orders in main sheet...:', selectedOrders.value)
+    let successCount = 0
     for (const order of selectedOrders.value) {
-      const shippingCode = orderShippingCodes.value[order.rowIndex] || ''
+      console.log('Step 2.1:', order)
+      console.log('Step 2.2:', order.rowIndex, 'uniqueId:', order.uniqueId)
+      const shippingCode = orderShippingCodes.value[order.uniqueId] || ''
+      console.log('Step 2.3:', shippingCode)
+      
+      // First, fetch fresh orders for the specific sheet to ensure store has the data
+      await store.fetchOrders(props.selectedDate, order.sheetType || 'customer')
+      
       await store.updateOrderWithShipping(
         order.rowIndex,
         managementCode,
         shippingCode,
-        'ĐÃ ĐẶT HÀNG',
+        ORDER_STATUSES.SALES.DA_DAT_HANG,
         props.selectedDate,
-        customerType.value
+        order.sheetType || 'customer'
       )
+      console.log('Step 2.4: Updated order successfully')
+      successCount++
     }
 
+    console.log(`Successfully updated ${successCount}/${selectedOrders.value.length} orders`)
     ElMessage.success(`Đã xử lý ${selectedOrders.value.length} đơn hàng với mã quản lý ${managementCode}`)
     
     // Clear and refresh
@@ -446,64 +581,60 @@ const processOrders = async () => {
     await refreshData()
     emit('updated')
     
-  } catch {
-    ElMessage.error('Có lỗi xảy ra khi xử lý đơn hàng')
+  } catch (error: unknown) {
+    console.error('Error in processOrders:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    ElMessage.error(`Có lỗi xảy ra khi xử lý đơn hàng: ${errorMessage}`)
   } finally {
     updating.value = false
+    console.log('processOrders completed')
   }
 }
 
 const createOrderChinaRecord = async (managementCode: string, representativeOrder: Order) => {
   try {
-    const response = await fetch('/api/sheets/ordchina', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        managementCode,
-        productName: representativeOrder.productName,
-        productImage: representativeOrder.productImage,
-        status: 'Đã đặt hàng',
-        shippingCodes: shippingCodes.value.join(', '),
-        note: managementInfo.value.note,
-        orderDate: managementInfo.value.orderDate,
-        quantity: managementInfo.value.quantity,
-        importPrice: managementInfo.value.importPrice,
-        date: props.selectedDate
-      })
+    console.log('Creating ORDCHINA record with data:', {
+      managementCode,
+      productName: representativeOrder.productName,
+      productImage: representativeOrder.productImage,
+      status: 'Đã đặt hàng',
+      shippingCodes: shippingCodes.value.length > 0 ? shippingCodes.value.join(', ') : '',
+      note: managementInfo.value.note,
+      orderDate: managementInfo.value.orderDate,
+      quantity: managementInfo.value.quantity,
+      importPrice: managementInfo.value.importPrice,
+      date: props.selectedDate
     })
-
-    if (!response.ok) {
-      throw new Error('Failed to create ORDCHINA record')
-    }
+    
+    const result = await createOrdChinaRecord({
+      managementCode,
+      productName: representativeOrder.productName,
+      productImage: representativeOrder.productImage,
+      status: 'Đã đặt hàng',
+      shippingCodes: shippingCodes.value.length > 0 ? shippingCodes.value.join(', ') : '',
+      note: managementInfo.value.note,
+      orderDate: managementInfo.value.orderDate,
+      quantity: managementInfo.value.quantity,
+      importPrice: managementInfo.value.importPrice,
+      date: props.selectedDate
+    })
+    
+    console.log('ORDCHINA API response:', result)
+    return result
   } catch (error) {
     console.error('Error creating ORDCHINA record:', error)
     throw error
   }
 }
 
-const getStatusType = (status: string) => {
-  switch (status) {
-    case 'NHẬN ĐƠN':
-      return 'info'
-    case 'ĐANG CHỜ GIAO':
-      return 'warning'
-    case 'ĐANG VẬN CHUYỂN':
-      return 'primary'
-    case 'ĐÃ ĐẶT HÀNG':
-      return 'success'
-    case 'HOÀN THÀNH':
-      return 'success'
-    default:
-      return 'info'
-  }
-}
+const getStatusType = getOrderStatusType
 
-// Watch customer type changes
-watch(customerType, () => {
-  refreshData()
-})
+// Watch selected sheets changes
+watch(selectedSheets, () => {
+  // Clear selections when changing sheets to avoid confusion
+  clearSelection()
+  debouncedRefresh()
+}, { deep: true })
 
 // Watch selected date changes
 watch(() => props.selectedDate, () => {
@@ -535,6 +666,15 @@ onMounted(() => {
       .header-actions {
         display: flex;
         align-items: center;
+        
+        .sheet-selector {
+          margin-right: 16px;
+          
+          :deep(.el-checkbox-group) {
+            display: flex;
+            gap: 12px;
+          }
+        }
       }
     }
     
@@ -550,6 +690,16 @@ onMounted(() => {
         gap: 12px;
         align-items: center;
         margin-bottom: 12px;
+        flex-wrap: wrap;
+        
+        @media (max-width: 576px) {
+          flex-direction: column;
+          align-items: stretch;
+          
+          .el-input {
+            max-width: 100% !important;
+          }
+        }
       }
       
       .shipping-codes {
@@ -574,6 +724,25 @@ onMounted(() => {
         color: #303133;
         font-size: 16px;
         font-weight: 600;
+      }
+
+      .management-form {
+        :deep(.el-form-item__label) {
+          font-weight: 500;
+          color: #606266;
+          font-size: 14px;
+        }
+
+        :deep(.el-input-number) {
+          .el-input__inner {
+            text-align: left;
+          }
+        }
+
+        :deep(.el-textarea__inner) {
+          resize: vertical;
+          min-height: 80px;
+        }
       }
     }
   }
@@ -648,6 +817,14 @@ onMounted(() => {
         margin: 4px 0;
         font-size: 12px;
       }
+
+      .no-selection-text {
+        color: #c0c4cc;
+        font-style: italic;
+        font-size: 12px;
+        text-align: center;
+        padding: 8px;
+      }
     }
     
     .action-row {
@@ -693,6 +870,22 @@ onMounted(() => {
         .input-row {
           flex-direction: column;
           align-items: stretch;
+          
+          .el-input {
+            margin-bottom: 8px;
+          }
+        }
+      }
+      
+      .order-management-section {
+        .management-form {
+          :deep(.el-col) {
+            margin-bottom: 16px;
+          }
+          
+          :deep(.el-form-item) {
+            margin-bottom: 12px;
+          }
         }
       }
     }

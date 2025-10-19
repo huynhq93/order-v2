@@ -327,10 +327,13 @@ const isFiltering = ref(false)
 
 const statusOptions = [
   'NHẬN ĐƠN',
+  'ĐÃ ĐẶT HÀNG',
+  'HÀNG VỀ',
   'ĐANG CHỜ GIAO',
   'ĐANG GIAO',
-  'HOÀN THÀNH',
-  'Hủy',
+  'THÀNH CÔNG',
+  'HUỶ ĐƠN',
+  'HOÀN HÀNG'
 ]
 
 
@@ -428,12 +431,20 @@ const getStatusColor = (status: string) => {
   switch (status) {
     case 'NHẬN ĐƠN':
       return 'bg-blue-100 text-blue-800'
-    case 'ĐANG GIAO':
-      return 'bg-yellow-100 text-yellow-800'
+    case 'ĐÃ ĐẶT HÀNG':
+      return 'bg-purple-100 text-purple-800'
+    case 'HÀNG VỀ':
+      return 'bg-indigo-100 text-indigo-800'
     case 'ĐANG CHỜ GIAO':
       return 'bg-orange-100 text-orange-800'
-    case 'HOÀN THÀNH':
+    case 'ĐANG GIAO':
+      return 'bg-yellow-100 text-yellow-800'
+    case 'THÀNH CÔNG':
       return 'bg-green-100 text-green-800'
+    case 'HUỶ ĐƠN':
+      return 'bg-red-100 text-red-800'
+    case 'HOÀN HÀNG':
+      return 'bg-pink-100 text-pink-800'
     default:
       return 'bg-gray-100 text-gray-800'
   }

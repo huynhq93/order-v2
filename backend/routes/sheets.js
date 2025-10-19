@@ -259,7 +259,7 @@ router.put('/:rowIndex', async (req, res) => {
 
     // Row trong sheet (rowIndex + 4 vì sheet bắt đầu từ row 4)
     const targetRow = parseInt(rowIndex) + 4
-    const range = `${sheetName}!A${targetRow}:N${targetRow}` // Extend to column N
+    const range = `${sheetName}!A${targetRow}:O${targetRow}` // Extend to column N
 
     console.log('Updating range:', range)
 
@@ -670,6 +670,125 @@ const SHEET_TYPES = {
   INVENTORY: 'NHẬP HÀNG',
   CTV_ORDERS: 'CTV',
   PRODUCTS: 'SP',
+}
+
+// Create ORDCHINA record
+router.post('/ordchina', async (req, res) => {
+  try {
+    const {
+      managementCode,
+      productName,
+      productImage,
+      status,
+      shippingCodes,
+      note,
+      orderDate,
+      quantity,
+      importPrice,
+      date,
+    } = req.body
+
+    const sheetName = `ORDCHINA_${date.month}_${date.year}`
+
+    // Create sheet if it doesn't exist
+    await createSheetIfNotExists(sheetName)
+
+    // Get existing data to find next row
+    const existingData = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A:J`,
+    })
+
+    const rows = existingData.data.values || []
+    const nextRow = rows.length + 1
+
+    // Prepare row data - start from column A
+    const rowData = [
+      managementCode, // Column A: Mã quản lý order
+      productName, // Column B: Tên sản phẩm
+      productImage ? `=IMAGE("${productImage}")` : '', // Column C: HÌNH ẢNH
+      status, // Column D: STATUS
+      shippingCodes, // Column E: MÃ VẬN ĐƠN
+      note, // Column F: NOTE
+      orderDate, // Column G: NGÀY CHỐT MUA
+      '', // Column H: NGÀY Hàng về (empty)
+      quantity, // Column I: Số lượng
+      importPrice, // Column J: Giá nhập
+    ]
+
+    // Insert data at specific row
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetName}!A${nextRow}:J${nextRow}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [rowData],
+      },
+    })
+
+    res.json({ success: true, managementCode })
+  } catch (error) {
+    console.error('Error creating ORDCHINA record:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Helper function to create sheet if it doesn't exist
+async function createSheetIfNotExists(sheetName) {
+  try {
+    // Check if sheet exists
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId,
+    })
+
+    const sheetExists = spreadsheet.data.sheets.some(
+      (sheet) => sheet.properties.title === sheetName,
+    )
+
+    if (!sheetExists) {
+      // Create new sheet
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        resource: {
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: sheetName,
+                },
+              },
+            },
+          ],
+        },
+      })
+
+      // Add headers - start from column A
+      const headers = [
+        'Mã quản lý order', // Column A
+        'Tên sản phẩm', // Column B
+        'HÌNH ẢNH', // Column C
+        'STATUS', // Column D
+        'MÃ VẬN ĐƠN', // Column E
+        'NOTE', // Column F
+        'NGÀY CHỐT MUA', // Column G
+        'NGÀY Hàng về', // Column H
+        'Số lượng', // Column I
+        'Giá nhập', // Column J
+      ]
+
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${sheetName}!A1:J1`,
+        valueInputOption: 'USER_ENTERED',
+        resource: {
+          values: [headers],
+        },
+      })
+    }
+  } catch (error) {
+    console.error('Error creating sheet:', error)
+    throw error
+  }
 }
 
 module.exports = router
