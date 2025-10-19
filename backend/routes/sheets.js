@@ -43,6 +43,7 @@ router.post('/', async (req, res) => {
       customerName,
       productCode,
       orderCode,
+      shippingCode,
       productImage,
       productName,
       color,
@@ -114,6 +115,7 @@ router.post('/', async (req, res) => {
       note, // Column L
       productCode || generatedProductCode || '', // Column M - ProductCode
       orderCode || '', // Column N - OrderCode (mã đặt hàng)
+      shippingCode || '', // Column O - ShippingCode (mã vận đơn)
     ]
 
     console.log('Values array:', values)
@@ -186,6 +188,7 @@ router.put('/:rowIndex', async (req, res) => {
       customerName,
       productCode,
       orderCode,
+      shippingCode,
       productImage,
       productName,
       color,
@@ -276,6 +279,7 @@ router.put('/:rowIndex', async (req, res) => {
       note, // Column L
       productCode || generatedProductCode || '', // Column M - ProductCode
       orderCode || '', // Column N - OrderCode (mã đặt hàng)
+      shippingCode || '', // Column O - ShippingCode (mã vận đơn)
     ]
 
     const response = await sheets.spreadsheets.values.update({
@@ -530,6 +534,7 @@ async function readSheet(baseSheetName, date) {
             note: getCellString(cells[11]), // Column L
             productCode: getCellString(cells[12]) || '', // Column M - Product Code
             orderCode: getCellString(cells[13]) || '', // Column N - Order Code (mã đặt hàng)
+            shippingCode: getCellString(cells[14]) || '', // Column O - Shipping Code (mã vận đơn)
             month: `${date.getMonth() + 1}/${date.getFullYear()}`,
           }
         })
@@ -556,6 +561,7 @@ async function readSheet(baseSheetName, date) {
             note: getCellString(cells[11]), // Column L
             productCode: getCellString(cells[12]) || '', // Column M - Product Code
             orderCode: getCellString(cells[13]) || '', // Column N - Order Code (mã đặt hàng)
+            shippingCode: getCellString(cells[14]) || '', // Column O - Shipping Code (mã vận đơn)
             month: `${date.getMonth() + 1}/${date.getFullYear()}`,
           }
         })

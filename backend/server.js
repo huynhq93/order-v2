@@ -4,6 +4,7 @@ require('dotenv').config()
 
 const sheetRoutes = require('./routes/sheets')
 const imageRoutes = require('./routes/images')
+const ordchinaRoutes = require('./routes/ordchina')
 
 const app = express()
 app.use(cors())
@@ -14,10 +15,12 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
 app.use('/api/sheets', sheetRoutes)
 app.use('/api/images', imageRoutes)
+app.use('/api/ordchina', ordchinaRoutes)
 
 // Also mount routes without /api prefix for direct access
 app.use('/sheets', sheetRoutes)
 app.use('/images', imageRoutes)
+app.use('/ordchina', ordchinaRoutes)
 
 app.get('/api/test', (req, res) => {
   res.json({

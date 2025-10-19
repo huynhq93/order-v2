@@ -4,6 +4,7 @@ export interface Order {
   customerName: string
   productCode?: string
   orderCode?: string // Mã đặt hàng
+  shippingCode?: string // Mã vận đơn
   productImage: string
   productName: string
   color: string

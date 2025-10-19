@@ -51,6 +51,7 @@ declare module 'vue' {
     OrdersTable: typeof import('./src/components/OrdersTable.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    ShippingCodeManager: typeof import('./src/components/ShippingCodeManager.vue')['default']
     TheWelcome: typeof import('./src/components/TheWelcome.vue')['default']
     WelcomeItem: typeof import('./src/components/WelcomeItem.vue')['default']
   }

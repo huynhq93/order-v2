@@ -104,5 +104,43 @@ export const useOrdersStore = defineStore('orders', {
         throw err
       }
     },
+
+    async updateOrderWithShipping(
+      rowIndex: number,
+      managementCode: string,
+      shippingCode: string,
+      status: string,
+      selectedDate: { month: number; year: number },
+      customerType: 'customer' | 'ctv'
+    ) {
+      try {
+        const order = this.orders.find((o) => o.rowIndex === rowIndex)
+        if (!order) {
+          throw new Error('Order not found')
+        }
+
+        // Create updated order with management code, shipping code and new status
+        const updatedOrder = {
+          ...order,
+          orderCode: managementCode,
+          shippingCode,
+          status,
+          monthForUpdate: selectedDate.month,
+          yearForUpdate: selectedDate.year,
+        }
+
+        // Update via API
+        await updateOrder(updatedOrder, customerType)
+        
+        // Update local state
+        const index = this.orders.findIndex((o) => o.rowIndex === rowIndex)
+        if (index !== -1) {
+          this.orders[index] = updatedOrder
+        }
+      } catch (err) {
+        this.error = err instanceof Error ? err.message : 'Failed to update order with shipping'
+        throw err
+      }
+    },
   },
 }) 
