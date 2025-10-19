@@ -25,9 +25,9 @@ const router = createRouter({
       component: () => import('@/views/OrderCodeView.vue'),
     },
     {
-      path: '/shipping-codes',
-      name: 'shipping-codes',
-      component: () => import('@/views/ShippingCodeView.vue'),
+      path: '/order-china',
+      name: 'order-china',
+      component: () => import('@/views/OrderChinaView.vue'),
     },
   ],
 })

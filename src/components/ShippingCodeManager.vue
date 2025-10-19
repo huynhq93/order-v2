@@ -4,7 +4,7 @@
       <template #header>
         <div class="header-container">
           <div class="header-row">
-            <h3 class="title">Quản lý mã vận đơn</h3>
+            <h3 class="title">Nhập mã vận đơn</h3>
             <div class="header-actions">
               <el-select
                 v-model="customerType"
@@ -25,93 +25,19 @@
             </div>
           </div>
           
-          <!-- Shipping Codes Management -->
-          <div class="shipping-codes-section">
+          <!-- Single Shipping Code Input -->
+          <div class="shipping-code-input-section">
             <div class="input-row">
               <el-input
-                v-model="newShippingCode"
+                v-model="singleShippingCode"
                 placeholder="Nhập mã vận đơn (VD: VD123)"
-                style="width: 200px;"
-                @keyup.enter="addShippingCode"
+                style="width: 300px;"
+                clearable
               >
                 <template #prefix>
-                  <el-icon><Van /></el-icon>
+                  <el-icon><DocumentAdd /></el-icon>
                 </template>
               </el-input>
-              <el-button 
-                type="success" 
-                @click="addShippingCode"
-                :disabled="!newShippingCode.trim()"
-              >
-                Thêm mã vận đơn
-              </el-button>
-            </div>
-            
-            <!-- Shipping Code Tags -->
-            <div v-if="shippingCodes.length > 0" class="shipping-codes">
-              <el-tag
-                v-for="code in shippingCodes"
-                :key="code"
-                closable
-                @close="removeShippingCode(code)"
-                type="primary"
-                size="large"
-                class="shipping-code-tag"
-              >
-                {{ code }}
-              </el-tag>
-            </div>
-          </div>
-
-          <!-- Order Management Info -->
-          <div class="order-management-section" v-if="shippingCodes.length > 0">
-            <h4>Thông tin quản lý đơn hàng</h4>
-            <div class="management-form">
-              <el-row :gutter="16">
-                <el-col :span="8">
-                  <el-form-item label="Ghi chú">
-                    <el-input
-                      v-model="managementInfo.note"
-                      placeholder="Nhập ghi chú"
-                      type="textarea"
-                      :rows="2"
-                    />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="Ngày chốt mua">
-                    <el-date-picker
-                      v-model="managementInfo.orderDate"
-                      type="date"
-                      placeholder="Chọn ngày chốt mua"
-                      format="DD/MM/YYYY"
-                      value-format="DD/MM/YYYY"
-                      style="width: 100%"
-                    />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="4">
-                  <el-form-item label="Số lượng">
-                    <el-input-number
-                      v-model="managementInfo.quantity"
-                      :min="1"
-                      placeholder="Số lượng"
-                      style="width: 100%"
-                    />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="4">
-                  <el-form-item label="Giá nhập">
-                    <el-input-number
-                      v-model="managementInfo.importPrice"
-                      :min="0"
-                      :precision="0"
-                      placeholder="Giá nhập"
-                      style="width: 100%"
-                    />
-                  </el-form-item>
-                </el-col>
-              </el-row>
             </div>
           </div>
         </div>
@@ -121,25 +47,15 @@
         <!-- Summary Stats -->
         <div class="stats-row">
           <el-statistic
-            title="Đơn hàng có thể đặt"
-            :value="availableOrders.length"
+            title="Đơn chờ nhập mã vận đơn"
+            :value="pendingOrders.length"
             class="stat-item"
           >
             <template #suffix>
-              <el-icon style="color: #f56c6c;"><ShoppingBag /></el-icon>
+              <el-icon style="color: #f56c6c;"><Clock /></el-icon>
             </template>
           </el-statistic>
           
-          <el-statistic
-            title="Mã vận đơn"
-            :value="shippingCodes.length"
-            class="stat-item"
-          >
-            <template #suffix>
-              <el-icon style="color: #409eff;"><Van /></el-icon>
-            </template>
-          </el-statistic>
-
           <el-statistic
             title="Đã chọn"
             :value="selectedOrders.length"
@@ -155,7 +71,7 @@
         <div class="table-container">
           <el-table
             ref="tableRef"
-            :data="availableOrders"
+            :data="filteredPendingOrders"
             v-loading="loading"
             @selection-change="handleSelectionChange"
             row-key="rowIndex"
@@ -163,18 +79,6 @@
             max-height="500"
           >
             <el-table-column type="selection" width="55" />
-            
-            <el-table-column label="Đại diện" width="80">
-              <template #default="{ row }">
-                <el-radio
-                  v-model="representativeOrderIndex"
-                  :label="row.rowIndex"
-                  @change="handleRepresentativeChange(row)"
-                >
-                  &nbsp;
-                </el-radio>
-              </template>
-            </el-table-column>
             
             <el-table-column prop="date" label="Ngày" width="80" />
             
@@ -208,24 +112,6 @@
               </template>
             </el-table-column>
             
-            <el-table-column label="Mã vận đơn" width="200" v-if="shippingCodes.length > 0">
-              <template #default="{ row }">
-                <el-radio-group 
-                  v-model="orderShippingCodes[row.rowIndex]"
-                  @change="handleShippingCodeChange(row)"
-                >
-                  <el-radio
-                    v-for="code in shippingCodes"
-                    :key="code"
-                    :label="code"
-                    class="shipping-radio"
-                  >
-                    {{ code }}
-                  </el-radio>
-                </el-radio-group>
-              </template>
-            </el-table-column>
-            
             <el-table-column prop="total" label="Tổng tiền" width="120">
               <template #default="{ row }">
                 <span class="price">{{ formatCurrency(row.total) }}</span>
@@ -243,10 +129,10 @@
         </div>
 
         <!-- Action Buttons -->
-        <div class="action-row" v-if="selectedOrders.length > 0 && shippingCodes.length > 0">
+        <div class="action-row" v-if="selectedOrders.length > 0">
           <div class="selected-info">
             <el-icon><InfoFilled /></el-icon>
-            Đã chọn {{ selectedOrders.length }} đơn hàng | Mã quản lý: <strong>{{ generatedManagementCode }}</strong>
+            Đã chọn {{ selectedOrders.length }} đơn hàng
           </div>
           
           <div class="action-buttons">
@@ -256,15 +142,17 @@
             
             <el-button 
               type="primary" 
-              @click="processOrders"
-              :loading="updating"
+              @click="applyShippingCode"
+              :disabled="!singleShippingCode.trim()"
             >
-              Xử lý đơn hàng
+              Áp dụng mã vận đơn
             </el-button>
           </div>
         </div>
       </div>
     </el-card>
+
+
   </div>
 </template>
 
@@ -276,8 +164,7 @@ import type { Order } from '@/types/order'
 import { ElMessage } from 'element-plus'
 import { 
   Refresh, 
-  Van,
-  ShoppingBag,
+  DocumentAdd, 
   Clock, 
   Select, 
   InfoFilled
@@ -298,34 +185,19 @@ const tableRef = ref()
 const customerType = ref<'customer' | 'ctv'>('customer')
 const loading = ref(false)
 const updating = ref(false)
-const newShippingCode = ref('')
-const shippingCodes = ref<string[]>([])
+const singleShippingCode = ref('')
 const selectedOrders = ref<Order[]>([])
-const orderShippingCodes = ref<Record<number, string>>({})
-const representativeOrderIndex = ref<number | null>(null)
-
-// Management info
-const managementInfo = ref({
-  note: '',
-  orderDate: new Date().toLocaleDateString('en-GB'),
-  quantity: 1,
-  importPrice: 0
-})
 
 // Computed
-const availableOrders = computed(() => {
+const pendingOrders = computed(() => {
   return store.orders.filter(order => 
     order.status === 'ĐANG CHỜ GIAO' || 
     order.status === 'ĐANG VẬN CHUYỂN'
   )
 })
 
-const generatedManagementCode = computed(() => {
-  const today = new Date()
-  const month = (today.getMonth() + 1).toString().padStart(2, '0')
-  const day = today.getDate().toString().padStart(2, '0')
-  const timestamp = Date.now().toString().slice(-6)
-  return `OC${month}${day}${timestamp}`
+const filteredPendingOrders = computed(() => {
+  return pendingOrders.value
 })
 
 // Methods
@@ -340,146 +212,62 @@ const refreshData = async () => {
   }
 }
 
-const addShippingCode = () => {
-  const code = newShippingCode.value.trim().toUpperCase()
-  if (!code) return
-  
-  if (shippingCodes.value.includes(code)) {
-    ElMessage.warning('Mã vận đơn đã tồn tại')
-    return
-  }
-  
-  shippingCodes.value.push(code)
-  newShippingCode.value = ''
-  ElMessage.success(`Đã thêm mã vận đơn: ${code}`)
-}
 
-const removeShippingCode = (code: string) => {
-  const index = shippingCodes.value.indexOf(code)
-  if (index > -1) {
-    shippingCodes.value.splice(index, 1)
-    
-    // Remove shipping code from orders
-    Object.keys(orderShippingCodes.value).forEach(orderIndex => {
-      if (orderShippingCodes.value[parseInt(orderIndex)] === code) {
-        delete orderShippingCodes.value[parseInt(orderIndex)]
-      }
-    })
-  }
-}
 
 const handleSelectionChange = (selection: Order[]) => {
   selectedOrders.value = selection
-  
-  // Set first selected order as representative if none selected
-  if (selection.length > 0 && !representativeOrderIndex.value) {
-    representativeOrderIndex.value = selection[0].rowIndex
-  }
-}
-
-const handleRepresentativeChange = (row: Order) => {
-  // Auto-select the order when it's chosen as representative
-  const isSelected = selectedOrders.value.some(order => order.rowIndex === row.rowIndex)
-  if (!isSelected) {
-    selectedOrders.value.push(row)
-    tableRef.value?.toggleRowSelection(row, true)
-  }
-}
-
-const handleShippingCodeChange = (row: Order) => {
-  // Auto-select the order when shipping code is chosen
-  const isSelected = selectedOrders.value.some(order => order.rowIndex === row.rowIndex)
-  if (!isSelected) {
-    selectedOrders.value.push(row)
-    tableRef.value?.toggleRowSelection(row, true)
-  }
 }
 
 const clearSelection = () => {
   tableRef.value?.clearSelection()
   selectedOrders.value = []
-  orderShippingCodes.value = {}
-  representativeOrderIndex.value = null
 }
 
-const processOrders = async () => {
+const applyShippingCode = () => {
   if (selectedOrders.value.length === 0) {
     ElMessage.warning('Vui lòng chọn ít nhất một đơn hàng')
     return
   }
+  
+  if (!singleShippingCode.value.trim()) {
+    ElMessage.warning('Vui lòng nhập mã vận đơn')
+    return
+  }
+  
+  confirmBatchUpdate()
+}
 
+const confirmBatchUpdate = async () => {
   updating.value = true
   try {
-    const managementCode = generatedManagementCode.value
-    const representativeOrder = selectedOrders.value.find(order => 
-      order.rowIndex === representativeOrderIndex.value
-    ) || selectedOrders.value[0]
-
-    // 1. Create record in ORDCHINA sheet
-    await createOrderChinaRecord(managementCode, representativeOrder)
-
-    // 2. Update orders in main sheet
+    const shippingCode = singleShippingCode.value.trim().toUpperCase()
+    
+    // Update each selected order
     for (const order of selectedOrders.value) {
-      const shippingCode = orderShippingCodes.value[order.rowIndex] || ''
       await store.updateOrderWithShipping(
         order.rowIndex,
-        managementCode,
+        '', // no management code for this case
         shippingCode,
-        'ĐÃ ĐẶT HÀNG',
+        'ĐANG VẬN CHUYỂN',
         props.selectedDate,
         customerType.value
       )
     }
-
-    ElMessage.success(`Đã xử lý ${selectedOrders.value.length} đơn hàng với mã quản lý ${managementCode}`)
     
-    // Clear and refresh
+    ElMessage.success(`Đã cập nhật ${selectedOrders.value.length} đơn hàng với mã vận đơn ${shippingCode}`)
+    
+    // Clear selection and refresh
     clearSelection()
-    shippingCodes.value = []
-    managementInfo.value = {
-      note: '',
-      orderDate: new Date().toLocaleDateString('en-GB'),
-      quantity: 1,
-      importPrice: 0
-    }
+    singleShippingCode.value = ''
     
+    // Refresh data
     await refreshData()
     emit('updated')
     
   } catch {
-    ElMessage.error('Có lỗi xảy ra khi xử lý đơn hàng')
+    ElMessage.error('Có lỗi xảy ra khi cập nhật đơn hàng')
   } finally {
     updating.value = false
-  }
-}
-
-const createOrderChinaRecord = async (managementCode: string, representativeOrder: Order) => {
-  try {
-    const response = await fetch('/api/sheets/ordchina', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        managementCode,
-        productName: representativeOrder.productName,
-        productImage: representativeOrder.productImage,
-        status: 'Đã đặt hàng',
-        shippingCodes: shippingCodes.value.join(', '),
-        note: managementInfo.value.note,
-        orderDate: managementInfo.value.orderDate,
-        quantity: managementInfo.value.quantity,
-        importPrice: managementInfo.value.importPrice,
-        date: props.selectedDate
-      })
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to create ORDCHINA record')
-    }
-  } catch (error) {
-    console.error('Error creating ORDCHINA record:', error)
-    throw error
   }
 }
 
@@ -489,10 +277,8 @@ const getStatusType = (status: string) => {
       return 'info'
     case 'ĐANG CHỜ GIAO':
       return 'warning'
-    case 'ĐANG VẬN CHUYỂN':
+    case 'ĐANG GIAO':
       return 'primary'
-    case 'ĐÃ ĐẶT HÀNG':
-      return 'success'
     case 'HOÀN THÀNH':
       return 'success'
     default:
@@ -517,7 +303,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.shipping-code-manager {
+.order-code-manager {
   .header-container {
     .header-row {
       display: flex;
@@ -538,42 +324,16 @@ onMounted(() => {
       }
     }
     
-    .shipping-codes-section {
-      background: #f0f9ff;
+    .shipping-code-input-section {
+      background: #f8f9fa;
       padding: 16px;
       border-radius: 8px;
-      border: 1px solid #b3d8ff;
-      margin-bottom: 16px;
+      border: 1px solid #e9ecef;
       
       .input-row {
         display: flex;
         gap: 12px;
         align-items: center;
-        margin-bottom: 12px;
-      }
-      
-      .shipping-codes {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        
-        .shipping-code-tag {
-          font-weight: 600;
-        }
-      }
-    }
-
-    .order-management-section {
-      background: #f8f9fa;
-      padding: 16px;
-      border-radius: 8px;
-      border: 1px solid #e9ecef;
-
-      h4 {
-        margin: 0 0 16px 0;
-        color: #303133;
-        font-size: 16px;
-        font-weight: 600;
       }
     }
   }
@@ -642,12 +402,6 @@ onMounted(() => {
         font-weight: 600;
         color: #e6a23c;
       }
-
-      .shipping-radio {
-        display: block;
-        margin: 4px 0;
-        font-size: 12px;
-      }
     }
     
     .action-row {
@@ -675,9 +429,35 @@ onMounted(() => {
   }
 }
 
+.confirm-content {
+  .confirm-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #fef7e6;
+    border-radius: 8px;
+    border: 1px solid #f4d03f;
+    
+    p {
+      margin: 4px 0;
+    }
+  }
+  
+  .order-preview {
+    .more-items {
+      text-align: center;
+      color: #909399;
+      font-style: italic;
+      margin-top: 8px;
+    }
+  }
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
-  .shipping-code-manager {
+  .order-code-manager {
     .header-container {
       .header-row {
         flex-direction: column;
@@ -689,7 +469,7 @@ onMounted(() => {
         }
       }
       
-      .shipping-codes-section {
+      .batch-input-section {
         .input-row {
           flex-direction: column;
           align-items: stretch;

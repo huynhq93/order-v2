@@ -6,7 +6,7 @@
       class="mb-6"
     />
     
-    <ShippingCodeManager
+    <OrderChinaManager
       :selected-date="selectedDate"
       @updated="handleOrderUpdated"
     />
@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import MonthSelector from '@/components/MonthSelector.vue'
-import ShippingCodeManager from '@/components/ShippingCodeManager.vue'
+import OrderChinaManager from '@/components/OrderChinaManager.vue'
 
 // Current date for initial selection
 const currentDate = new Date()
@@ -31,7 +31,7 @@ const handleDateChange = (newDate: { month: number; year: number }) => {
 
 const handleOrderUpdated = () => {
   // Handle any additional actions when orders are updated
-  console.log('Shipping orders updated successfully')
+  console.log('Order China updated successfully')
 }
 </script>
 

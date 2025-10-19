@@ -6,7 +6,7 @@
       class="mb-6"
     />
     
-    <OrderCodeManager
+    <ShippingCodeManager
       :selected-date="selectedDate"
       @updated="handleOrderUpdated"
     />
@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import MonthSelector from '@/components/MonthSelector.vue'
-import OrderCodeManager from '@/components/OrderCodeManager.vue'
+import ShippingCodeManager from '@/components/ShippingCodeManager.vue'
 
 // Current date for initial selection
 const currentDate = new Date()

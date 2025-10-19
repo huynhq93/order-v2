@@ -9,11 +9,11 @@
         </el-menu-item>
         <el-menu-item index="order-codes">
           <el-icon><DocumentAdd /></el-icon>
-          <span>Nhập mã đặt hàng</span>
+          <span>Nhập mã vận đơn</span>
         </el-menu-item>
-        <el-menu-item index="shipping-codes">
+        <el-menu-item index="order-china">
           <el-icon><Van /></el-icon>
-          <span>Quản lý vận đơn</span>
+          <span>Quản lý nhập hàng</span>
         </el-menu-item>
         <el-menu-item index="bill">
           <el-icon><Document /></el-icon>
@@ -61,8 +61,8 @@ const handleMenuSelect = (index: string) => {
     router.push('/bill')
   } else if (index === 'order-codes') {
     router.push('/order-codes')
-  } else if (index === 'shipping-codes') {
-    router.push('/shipping-codes')
+  } else if (index === 'order-china') {
+    router.push('/order-china')
   } else if (index === 'orders') {
     router.push('/')
   }
