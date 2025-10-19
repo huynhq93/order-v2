@@ -42,6 +42,7 @@ router.post('/', async (req, res) => {
       date,
       customerName,
       productCode,
+      orderCode,
       productImage,
       productName,
       color,
@@ -111,7 +112,8 @@ router.post('/', async (req, res) => {
       linkFb, // Column J
       contactInfo, // Column K
       note, // Column L
-      productCode || generatedProductCode || '', // Column M - Add productCode as new last column
+      productCode || generatedProductCode || '', // Column M - ProductCode
+      orderCode || '', // Column N - OrderCode (mã đặt hàng)
     ]
 
     console.log('Values array:', values)
@@ -183,6 +185,7 @@ router.put('/:rowIndex', async (req, res) => {
       date,
       customerName,
       productCode,
+      orderCode,
       productImage,
       productName,
       color,
@@ -253,7 +256,7 @@ router.put('/:rowIndex', async (req, res) => {
 
     // Row trong sheet (rowIndex + 4 vì sheet bắt đầu từ row 4)
     const targetRow = parseInt(rowIndex) + 4
-    const range = `${sheetName}!A${targetRow}:M${targetRow}` // Extend to column M
+    const range = `${sheetName}!A${targetRow}:N${targetRow}` // Extend to column N
 
     console.log('Updating range:', range)
 
@@ -271,7 +274,8 @@ router.put('/:rowIndex', async (req, res) => {
       linkFb, // Column J
       contactInfo, // Column K
       note, // Column L
-      productCode || generatedProductCode || '', // Column M - Add productCode as new last column
+      productCode || generatedProductCode || '', // Column M - ProductCode
+      orderCode || '', // Column N - OrderCode (mã đặt hàng)
     ]
 
     const response = await sheets.spreadsheets.values.update({
@@ -524,7 +528,8 @@ async function readSheet(baseSheetName, date) {
             linkFb: getCellString(cells[9]), // Column J
             contactInfo: getCellString(cells[10]), // Column K
             note: getCellString(cells[11]), // Column L
-            productCode: getCellString(cells[12]) || '', // Column M - Product Code (new)
+            productCode: getCellString(cells[12]) || '', // Column M - Product Code
+            orderCode: getCellString(cells[13]) || '', // Column N - Order Code (mã đặt hàng)
             month: `${date.getMonth() + 1}/${date.getFullYear()}`,
           }
         })
@@ -549,7 +554,8 @@ async function readSheet(baseSheetName, date) {
             linkFb: getCellString(cells[9]), // Column J
             contactInfo: getCellString(cells[10]), // Column K
             note: getCellString(cells[11]), // Column L
-            productCode: getCellString(cells[12]) || '', // Column M - Product Code (new)
+            productCode: getCellString(cells[12]) || '', // Column M - Product Code
+            orderCode: getCellString(cells[13]) || '', // Column N - Order Code (mã đặt hàng)
             month: `${date.getMonth() + 1}/${date.getFullYear()}`,
           }
         })

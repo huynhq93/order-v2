@@ -128,6 +128,14 @@
           </template>
         </el-table-column>
         <el-table-column prop="productName" label="SẢN PHẨM" min-width="100" />
+        <el-table-column prop="orderCode" label="MÃ ĐH" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.orderCode" type="success" size="small">
+              {{ row.orderCode }}
+            </el-tag>
+            <span v-else class="text-gray-400">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="color" label="MÀU SẮC" min-width="90" />
         <el-table-column prop="size" label="SIZE" />
         <el-table-column prop="quantity" label="SL" />
@@ -145,8 +153,8 @@
               :class="getStatusColor(row.status)"
             >
               <el-option label="NHẬN ĐƠN" value="NHẬN ĐƠN" />
-              <el-option label="ĐANG GIAO" value="ĐANG GIAO" />
               <el-option label="ĐANG CHỜ GIAO" value="ĐANG CHỜ GIAO" />
+              <el-option label="ĐANG GIAO" value="ĐANG GIAO" />
               <el-option label="HUỶ" value="Hủy" />
             </el-select>
           </template>
@@ -319,8 +327,8 @@ const isFiltering = ref(false)
 
 const statusOptions = [
   'NHẬN ĐƠN',
-  'ĐANG GIAO',
   'ĐANG CHỜ GIAO',
+  'ĐANG GIAO',
   'HOÀN THÀNH',
   'Hủy',
 ]

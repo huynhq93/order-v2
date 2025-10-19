@@ -3,6 +3,7 @@ export interface Order {
   date: string
   customerName: string
   productCode?: string
+  orderCode?: string // Mã đặt hàng
   productImage: string
   productName: string
   color: string

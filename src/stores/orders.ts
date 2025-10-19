@@ -67,5 +67,42 @@ export const useOrdersStore = defineStore('orders', {
         throw err
       }
     },
+
+    async updateOrderWithCode(
+      rowIndex: number,
+      orderCode: string,
+      status: string,
+      selectedDate: { month: number; year: number },
+      customerType: 'customer' | 'ctv' = 'customer',
+    ) {
+      try {
+        // Find the order to update
+        const order = this.orders.find((o) => o.rowIndex === rowIndex)
+        if (!order) {
+          throw new Error('Order not found')
+        }
+
+        // Create updated order with orderCode and new status
+        const updatedOrder = {
+          ...order,
+          orderCode,
+          status,
+          monthForUpdate: selectedDate.month,
+          yearForUpdate: selectedDate.year,
+        }
+
+        // Update via API
+        await updateOrder(updatedOrder, customerType)
+        
+        // Update local state
+        const index = this.orders.findIndex((o) => o.rowIndex === rowIndex)
+        if (index !== -1) {
+          this.orders[index] = updatedOrder
+        }
+      } catch (err) {
+        this.error = err instanceof Error ? err.message : 'Failed to update order with code'
+        throw err
+      }
+    },
   },
 }) 

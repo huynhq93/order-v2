@@ -7,6 +7,10 @@
           <el-icon><Management /></el-icon>
           <span>Quản lý đơn hàng</span>
         </el-menu-item>
+        <el-menu-item index="order-codes">
+          <el-icon><DocumentAdd /></el-icon>
+          <span>Nhập mã đặt hàng</span>
+        </el-menu-item>
         <el-menu-item index="bill">
           <el-icon><Document /></el-icon>
           <span>Tạo hóa đơn</span>
@@ -34,7 +38,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Management, Document } from '@element-plus/icons-vue'
+import { Management, Document, DocumentAdd } from '@element-plus/icons-vue'
 import OrdersTable from '@/components/OrdersTable.vue'
 import MonthSelector from '@/components/MonthSelector.vue'
 
@@ -51,6 +55,8 @@ const handleMenuSelect = (index: string) => {
   activeMenuItem.value = index
   if (index === 'bill') {
     router.push('/bill')
+  } else if (index === 'order-codes') {
+    router.push('/order-codes')
   } else if (index === 'orders') {
     router.push('/')
   }
