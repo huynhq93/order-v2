@@ -4,16 +4,14 @@
       <template #header>
         <div class="header-container">
           <div class="header-row">
-            <h3 class="title">Nhập mã vận đơn</h3>
+            <h3 class="title">Quản lý mã vận đơn</h3>
             <div class="header-actions">
-              <el-select
-                v-model="customerType"
-                size="default"
-                style="width: 120px; margin-right: 16px;"
-              >
-                <el-option label="Khách" value="customer" />
-                <el-option label="CTV" value="ctv" />
-              </el-select>
+              <div class="sheet-selector">
+                <el-checkbox-group v-model="selectedSheets" @change="refreshData">
+                  <el-checkbox label="customer">Bán hàng</el-checkbox>
+                  <el-checkbox label="ctv">CTV</el-checkbox>
+                </el-checkbox-group>
+              </div>
               <el-button 
                 type="primary" 
                 @click="refreshData"
@@ -24,63 +22,94 @@
               </el-button>
             </div>
           </div>
-          
-          <!-- Single Shipping Code Input -->
-          <div class="shipping-code-input-section">
-            <div class="input-row">
-              <el-input
-                v-model="singleShippingCode"
-                placeholder="Nhập mã vận đơn (VD: VD123)"
-                style="width: 300px;"
-                clearable
-              >
-                <template #prefix>
-                  <el-icon><DocumentAdd /></el-icon>
-                </template>
-              </el-input>
-            </div>
-          </div>
         </div>
       </template>
 
       <div class="content-container">
-        <!-- Summary Stats -->
-        <div class="stats-row">
-          <el-statistic
-            title="Đơn chờ nhập mã vận đơn"
-            :value="pendingOrders.length"
-            class="stat-item"
-          >
-            <template #suffix>
-              <el-icon style="color: #f56c6c;"><Clock /></el-icon>
-            </template>
-          </el-statistic>
+        <!-- Grouped Orders -->
+        <div v-for="group in groupedOrders" :key="group.key" class="order-group">
+          <!-- Group Header -->
+          <div class="group-header">
+            <div class="group-info">
+              <div class="management-code">
+                <strong>{{ group.managementCode || 'Chưa có mã quản lý' }}</strong>
+              </div>
+              <div class="shipping-code" v-if="group.shippingCode">
+                Mã vận đơn: <el-tag type="primary">{{ group.shippingCode }}</el-tag>
+              </div>
+              <div class="orders-count">
+                {{ group.orders.length }} đơn hàng
+              </div>
+            </div>
+            
+            <!-- Shipping Code Actions for groups without shipping code -->
+            <div class="group-actions" v-if="!group.shippingCode && selectedOrdersInGroup(group.key).length > 0">
+              <el-input
+                v-model="groupShippingCodes[group.key]"
+                placeholder="Nhập mã vận đơn"
+                style="width: 200px; margin-right: 12px;"
+                size="default"
+              >
+                <template #prefix>
+                  <el-icon><Van /></el-icon>
+                </template>
+              </el-input>
+              <el-button
+                type="primary"
+                @click="applyShippingCodeToGroup(group.key)"
+                :disabled="!groupShippingCodes[group.key]?.trim()"
+                size="default"
+              >
+                Thêm mã vận đơn
+              </el-button>
+            </div>
+            
+            <!-- Status Update for groups with shipping code -->
+            <div class="group-actions" v-if="group.shippingCode">
+              <el-select
+                v-model="groupStatuses[group.key]"
+                placeholder="Chọn trạng thái"
+                style="width: 180px; margin-right: 12px;"
+                size="default"
+              >
+                <el-option label="Đang giao" :value="ORDER_STATUSES.SALES.DANG_GIAO" />
+                <el-option label="Đã giao" :value="ORDER_STATUSES.SALES.DA_GIAO" />
+                <el-option label="Hoàn trả" :value="ORDER_STATUSES.SALES.HOAN_TRA" />
+              </el-select>
+              <el-button
+                type="success"
+                @click="updateGroupStatus(group.key)"
+                :disabled="!groupStatuses[group.key]"
+                size="default"
+              >
+                Cập nhật trạng thái
+              </el-button>
+            </div>
+          </div>
           
-          <el-statistic
-            title="Đã chọn"
-            :value="selectedOrders.length"
-            class="stat-item"
-          >
-            <template #suffix>
-              <el-icon style="color: #67c23a;"><Select /></el-icon>
-            </template>
-          </el-statistic>
-        </div>
-
-        <!-- Orders Table -->
-        <div class="table-container">
+          <!-- Orders Table for this group -->
           <el-table
-            ref="tableRef"
-            :data="filteredPendingOrders"
-            v-loading="loading"
-            @selection-change="handleSelectionChange"
-            row-key="rowIndex"
+            :data="group.orders"
+            row-key="uniqueId"
             style="width: 100%"
-            max-height="500"
+            @selection-change="(selection) => handleGroupSelectionChange(group.key, selection)"
           >
-            <el-table-column type="selection" width="55" />
+            <!-- Checkbox only for orders without shipping code -->
+            <el-table-column 
+              v-if="!group.shippingCode" 
+              type="selection" 
+              width="55" 
+            />
             
             <el-table-column prop="date" label="Ngày" width="80" />
+            
+            <el-table-column label="Sheet" width="80">
+              <template #default="{ row }">
+                <el-tag :type="row.sheetType === 'customer' ? 'primary' : 'warning'" size="small">
+                  {{ row.sheetType === 'customer' ? 'Bán hàng' : 'CTV' }}
+                </el-tag>
+              </template>
+            </el-table-column>
             
             <el-table-column prop="customerName" label="Khách hàng" min-width="150">
               <template #default="{ row }">
@@ -118,7 +147,7 @@
               </template>
             </el-table-column>
             
-            <el-table-column prop="status" label="Trạng thái" width="120">
+            <el-table-column prop="status" label="Trạng thái" width="150">
               <template #default="{ row }">
                 <el-tag :type="getStatusType(row.status)">
                   {{ row.status }}
@@ -127,27 +156,10 @@
             </el-table-column>
           </el-table>
         </div>
-
-        <!-- Action Buttons -->
-        <div class="action-row" v-if="selectedOrders.length > 0">
-          <div class="selected-info">
-            <el-icon><InfoFilled /></el-icon>
-            Đã chọn {{ selectedOrders.length }} đơn hàng
-          </div>
-          
-          <div class="action-buttons">
-            <el-button @click="clearSelection">
-              Bỏ chọn
-            </el-button>
-            
-            <el-button 
-              type="primary" 
-              @click="applyShippingCode"
-              :disabled="!singleShippingCode.trim()"
-            >
-              Áp dụng mã vận đơn
-            </el-button>
-          </div>
+        
+        <!-- Empty State -->
+        <div v-if="groupedOrders.length === 0" class="empty-state">
+          <el-empty description="Không có đơn hàng nào" />
         </div>
       </div>
     </el-card>
@@ -164,12 +176,15 @@ import type { Order } from '@/types/order'
 import { ElMessage } from 'element-plus'
 import { 
   Refresh, 
-  DocumentAdd, 
-  Clock, 
-  Select, 
-  InfoFilled
+  Van
 } from '@element-plus/icons-vue'
 import { ORDER_STATUSES, getOrderStatusType } from '@/constants/orderStatus'
+
+// Extended Order type with unique ID for multi-sheet support
+interface ExtendedOrder extends Order {
+  uniqueId: string
+  sheetType: string
+}
 
 const props = defineProps<{
   selectedDate: { month: number; year: number }
@@ -180,93 +195,189 @@ const emit = defineEmits<{
 }>()
 
 const store = useOrdersStore()
-const tableRef = ref()
 
 // Reactive data
-const customerType = ref<'customer' | 'ctv'>('customer')
+const selectedSheets = ref<string[]>(['customer', 'ctv'])
 const loading = ref(false)
 const updating = ref(false)
-const singleShippingCode = ref('')
-const selectedOrders = ref<Order[]>([])
+const allOrders = ref<ExtendedOrder[]>([])
+const groupSelections = ref<Record<string, ExtendedOrder[]>>({})
+const groupShippingCodes = ref<Record<string, string>>({})
+const groupStatuses = ref<Record<string, string>>({})
 
 // Computed
-const pendingOrders = computed(() => {
-  return store.orders.filter(order => 
-    order.status === ORDER_STATUSES.SALES.DANG_CHO_GIAO || 
-    order.status === ORDER_STATUSES.SALES.HANG_VE
-  )
-})
-
-const filteredPendingOrders = computed(() => {
-  return pendingOrders.value
+const groupedOrders = computed(() => {
+  const groups = new Map<string, {
+    key: string
+    managementCode: string | null
+    shippingCode: string | null
+    orders: ExtendedOrder[]
+  }>()
+  
+  // Group orders by management code and shipping code
+  allOrders.value.forEach(order => {
+    const managementCode = order.managementCode || null
+    const shippingCode = order.shippingCode || null
+    const key = `${managementCode || 'no-mgmt'}-${shippingCode || 'no-ship'}`
+    
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        managementCode,
+        shippingCode,
+        orders: []
+      })
+    }
+    
+    groups.get(key)!.orders.push(order)
+  })
+  
+  // Sort groups: no shipping code first, then by management code
+  return Array.from(groups.values()).sort((a, b) => {
+    if (!a.shippingCode && b.shippingCode) return -1
+    if (a.shippingCode && !b.shippingCode) return 1
+    return (a.managementCode || '').localeCompare(b.managementCode || '')
+  })
 })
 
 // Methods
 const refreshData = async () => {
   loading.value = true
   try {
-    await store.fetchOrders(props.selectedDate, customerType.value)
-  } catch {
+    // Clear existing data first
+    allOrders.value = []
+    
+    // Create a temporary array to collect all orders
+    const tempOrders: ExtendedOrder[] = []
+    
+    // Fetch orders from selected sheets
+    for (const sheetType of selectedSheets.value) {
+      await store.fetchOrders(props.selectedDate, sheetType as 'customer' | 'ctv')
+      // Add sheet type info and unique ID to orders
+      const ordersWithSheetType = store.orders
+        .filter(order => order.status === ORDER_STATUSES.SALES.DA_DAT_HANG)
+        .map(order => ({
+          ...order,
+          sheetType,
+          uniqueId: `${sheetType}-${order.rowIndex}`, // Create unique ID
+          managementCode: order.orderCode // Map orderCode to managementCode for consistency
+        })) as ExtendedOrder[]
+      
+      tempOrders.push(...ordersWithSheetType)
+    }
+    
+    // Set all orders at once
+    allOrders.value = tempOrders
+    
+    console.log('Loaded orders for ShippingCodeManager:', allOrders.value.map(o => ({ 
+      uniqueId: o.uniqueId, 
+      customerName: o.customerName, 
+      sheetType: o.sheetType,
+      orderCode: o.orderCode,
+      managementCode: o.managementCode,
+      shippingCode: o.shippingCode,
+      status: o.status
+    })))
+    
+  } catch (error) {
+    console.error('Error loading data:', error)
     ElMessage.error('Lỗi khi tải dữ liệu')
   } finally {
     loading.value = false
   }
 }
 
-
-
-const handleSelectionChange = (selection: Order[]) => {
-  selectedOrders.value = selection
+const handleGroupSelectionChange = (groupKey: string, selection: ExtendedOrder[]) => {
+  groupSelections.value[groupKey] = selection
 }
 
-const clearSelection = () => {
-  tableRef.value?.clearSelection()
-  selectedOrders.value = []
+const selectedOrdersInGroup = (groupKey: string) => {
+  return groupSelections.value[groupKey] || []
 }
 
-const applyShippingCode = () => {
-  if (selectedOrders.value.length === 0) {
+const applyShippingCodeToGroup = async (groupKey: string) => {
+  const selectedOrders = selectedOrdersInGroup(groupKey)
+  const shippingCode = groupShippingCodes.value[groupKey]?.trim()
+  
+  if (selectedOrders.length === 0) {
     ElMessage.warning('Vui lòng chọn ít nhất một đơn hàng')
     return
   }
   
-  if (!singleShippingCode.value.trim()) {
+  if (!shippingCode) {
     ElMessage.warning('Vui lòng nhập mã vận đơn')
     return
   }
   
-  confirmBatchUpdate()
-}
-
-const confirmBatchUpdate = async () => {
   updating.value = true
   try {
-    const shippingCode = singleShippingCode.value.trim().toUpperCase()
+    const upperShippingCode = shippingCode.toUpperCase()
     
     // Update each selected order
-    for (const order of selectedOrders.value) {
+    for (const order of selectedOrders) {
       await store.updateOrderWithShipping(
         order.rowIndex,
-        '', // no management code for this case
-        shippingCode,
+        order.managementCode || '',
+        upperShippingCode,
         ORDER_STATUSES.SALES.DANG_GIAO,
         props.selectedDate,
-        customerType.value
+        order.sheetType as 'customer' | 'ctv'
       )
     }
     
-    ElMessage.success(`Đã cập nhật ${selectedOrders.value.length} đơn hàng với mã vận đơn ${shippingCode}`)
+    ElMessage.success(`Đã thêm mã vận đơn ${upperShippingCode} cho ${selectedOrders.length} đơn hàng`)
     
-    // Clear selection and refresh
-    clearSelection()
-    singleShippingCode.value = ''
+    // Clear group data
+    delete groupSelections.value[groupKey]
+    delete groupShippingCodes.value[groupKey]
     
     // Refresh data
     await refreshData()
     emit('updated')
     
-  } catch {
-    ElMessage.error('Có lỗi xảy ra khi cập nhật đơn hàng')
+  } catch (error) {
+    console.error('Error updating shipping code:', error)
+    ElMessage.error('Có lỗi xảy ra khi cập nhật mã vận đơn')
+  } finally {
+    updating.value = false
+  }
+}
+
+const updateGroupStatus = async (groupKey: string) => {
+  const group = groupedOrders.value.find(g => g.key === groupKey)
+  const newStatus = groupStatuses.value[groupKey]
+  
+  if (!group || !newStatus) {
+    ElMessage.warning('Vui lòng chọn trạng thái')
+    return
+  }
+  
+  updating.value = true
+  try {
+    // Update all orders in the group
+    for (const order of group.orders) {
+      await store.updateOrderWithShipping(
+        order.rowIndex,
+        order.managementCode || '',
+        order.shippingCode || '',
+        newStatus,
+        props.selectedDate,
+        order.sheetType as 'customer' | 'ctv'
+      )
+    }
+    
+    ElMessage.success(`Đã cập nhật trạng thái cho ${group.orders.length} đơn hàng`)
+    
+    // Clear group status
+    delete groupStatuses.value[groupKey]
+    
+    // Refresh data
+    await refreshData()
+    emit('updated')
+    
+  } catch (error) {
+    console.error('Error updating status:', error)
+    ElMessage.error('Có lỗi xảy ra khi cập nhật trạng thái')
   } finally {
     updating.value = false
   }
@@ -274,10 +385,10 @@ const confirmBatchUpdate = async () => {
 
 const getStatusType = getOrderStatusType
 
-// Watch customer type changes
-watch(customerType, () => {
+// Watch selected sheets changes
+watch(selectedSheets, () => {
   refreshData()
-})
+}, { deep: true })
 
 // Watch selected date changes
 watch(() => props.selectedDate, () => {
@@ -291,7 +402,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.order-code-manager {
+.shipping-code-manager {
   .header-container {
     .header-row {
       display: flex;
@@ -309,110 +420,121 @@ onMounted(() => {
       .header-actions {
         display: flex;
         align-items: center;
-      }
-    }
-    
-    .shipping-code-input-section {
-      background: #f8f9fa;
-      padding: 16px;
-      border-radius: 8px;
-      border: 1px solid #e9ecef;
-      
-      .input-row {
-        display: flex;
-        gap: 12px;
-        align-items: center;
+        
+        .sheet-selector {
+          margin-right: 16px;
+          
+          :deep(.el-checkbox-group) {
+            display: flex;
+            gap: 12px;
+          }
+        }
       }
     }
   }
   
   .content-container {
-    .stats-row {
-      display: flex;
-      gap: 24px;
-      margin-bottom: 20px;
+    .order-group {
+      margin-bottom: 24px;
+      border: 1px solid #e4e7ed;
+      border-radius: 8px;
+      overflow: hidden;
       
-      .stat-item {
-        flex: 1;
-        text-align: center;
+      .group-header {
+        background: #f5f7fa;
         padding: 16px;
-        background: #fafafa;
-        border-radius: 8px;
-        border: 1px solid #e4e7ed;
-      }
-    }
-    
-    .table-container {
-      margin-bottom: 20px;
-      
-      .customer-info {
-        .customer-name {
-          font-weight: 600;
-          color: #303133;
-          margin-bottom: 4px;
-        }
-        
-        .customer-contact {
-          font-size: 12px;
-          color: #909399;
-        }
-      }
-      
-      .product-info {
+        border-bottom: 1px solid #e4e7ed;
         display: flex;
+        justify-content: space-between;
         align-items: center;
-        gap: 12px;
         
-        .product-image {
-          width: 40px;
-          height: 40px;
-          border-radius: 4px;
-          flex-shrink: 0;
-        }
-        
-        .product-details {
-          flex: 1;
+        .group-info {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
           
-          .product-name {
-            font-weight: 500;
+          .management-code {
+            font-size: 16px;
             color: #303133;
-            margin-bottom: 4px;
           }
           
-          .product-variant {
+          .shipping-code {
+            font-size: 14px;
+            color: #606266;
+          }
+          
+          .orders-count {
             font-size: 12px;
             color: #909399;
           }
         }
+        
+        .group-actions {
+          display: flex;
+          align-items: center;
+        }
       }
       
-      .price {
-        font-weight: 600;
-        color: #e6a23c;
+      :deep(.el-table) {
+        border: none;
+        
+        .el-table__header {
+          th {
+            background: #fafafa;
+          }
+        }
       }
     }
     
-    .action-row {
+    .customer-info {
+      .customer-name {
+        font-weight: 600;
+        color: #303133;
+        margin-bottom: 4px;
+      }
+      
+      .customer-contact {
+        font-size: 12px;
+        color: #909399;
+      }
+    }
+    
+    .product-info {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 16px;
-      background: #f0f9ff;
-      border-radius: 8px;
-      border: 1px solid #b3d8ff;
+      gap: 12px;
       
-      .selected-info {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: #409eff;
-        font-weight: 500;
+      .product-image {
+        width: 40px;
+        height: 40px;
+        border-radius: 4px;
+        flex-shrink: 0;
       }
       
-      .action-buttons {
-        display: flex;
-        gap: 12px;
+      .product-details {
+        flex: 1;
+        
+        .product-name {
+          font-weight: 500;
+          color: #303133;
+          margin-bottom: 4px;
+        }
+        
+        .product-variant {
+          font-size: 12px;
+          color: #909399;
+        }
       }
+    }
+    
+    .price {
+      font-weight: 600;
+      color: #e6a23c;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px;
     }
   }
 }
@@ -445,7 +567,7 @@ onMounted(() => {
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-  .order-code-manager {
+  .shipping-code-manager {
     .header-container {
       .header-row {
         flex-direction: column;
@@ -454,27 +576,38 @@ onMounted(() => {
         
         .header-actions {
           justify-content: center;
-        }
-      }
-      
-      .batch-input-section {
-        .input-row {
-          flex-direction: column;
-          align-items: stretch;
+          
+          .sheet-selector {
+            margin-right: 0;
+            margin-bottom: 12px;
+          }
         }
       }
     }
     
     .content-container {
-      .stats-row {
-        flex-direction: column;
-        gap: 12px;
-      }
-      
-      .action-row {
-        flex-direction: column;
-        gap: 12px;
-        text-align: center;
+      .order-group {
+        .group-header {
+          flex-direction: column;
+          gap: 12px;
+          align-items: stretch;
+          
+          .group-actions {
+            justify-content: stretch;
+            
+            .el-input {
+              width: 100% !important;
+              margin-right: 0 !important;
+              margin-bottom: 8px;
+            }
+            
+            .el-select {
+              width: 100% !important;
+              margin-right: 0 !important;
+              margin-bottom: 8px;
+            }
+          }
+        }
       }
     }
   }

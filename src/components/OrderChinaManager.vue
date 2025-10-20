@@ -389,7 +389,8 @@ const refreshData = async () => {
       const ordersWithSheetType = store.orders.map(order => ({
         ...order,
         sheetType,
-        uniqueId: `${sheetType}-${order.rowIndex}` // Create unique ID
+        uniqueId: `${sheetType}-${order.rowIndex}`, // Create unique ID
+        managementCode: order.orderCode // Map orderCode to managementCode for consistency
       })) as ExtendedOrder[]
       
       tempOrders.push(...ordersWithSheetType)
@@ -398,7 +399,14 @@ const refreshData = async () => {
     // Set all orders at once to avoid duplication
     allOrders.value = tempOrders
     
-    console.log('Loaded orders:', allOrders.value.map(o => ({ uniqueId: o.uniqueId, customerName: o.customerName, sheetType: o.sheetType })))
+    console.log('Loaded orders with shipping codes:', allOrders.value.map(o => ({ 
+      uniqueId: o.uniqueId, 
+      customerName: o.customerName, 
+      sheetType: o.sheetType,
+      orderCode: o.orderCode,
+      managementCode: o.managementCode,
+      shippingCode: o.shippingCode
+    })))
   } catch (error) {
     console.error('Error loading data:', error)
     ElMessage.error('Lỗi khi tải dữ liệu')
@@ -538,7 +546,7 @@ const processOrders = async () => {
     console.log('Selected date:', props.selectedDate)
 
     // 1. Create record in ORDCHINA sheet
-    await createOrderChinaRecord(managementCode, representativeOrder)
+    await createOrderChinaRecord(managementCode, representativeOrder as Order)
     console.log('ORDCHINA record created successfully')
 
     // 2. Update orders in main sheet

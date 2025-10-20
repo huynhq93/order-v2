@@ -21,10 +21,9 @@ router.get('/', async (req, res) => {
     if (req.query.year && req.query.month) {
       date = new Date(Number.parseInt(req.query.year), Number.parseInt(req.query.month) - 1, 1)
     }
-    console.log('Query params:', req.query)
-    console.log('Date:', date)
 
     const result = await readSheet(SHEET_TYPES[req.query.type], date)
+
     res.json({ data: result })
   } catch (err) {
     console.error('Detailed error:', err)
@@ -545,7 +544,7 @@ async function readSheet(baseSheetName, date) {
         .slice(1)
         .map((row, index) => {
           const cells = row.values || []
-          return {
+          const rowData = {
             rowIndex: index,
             date: parseGoogleSheetDate(cells[0]),
             customerName: getCellString(cells[1]),
@@ -564,6 +563,15 @@ async function readSheet(baseSheetName, date) {
             shippingCode: getCellString(cells[14]) || '', // Column O - Shipping Code (mã vận đơn)
             month: `${date.getMonth() + 1}/${date.getFullYear()}`,
           }
+
+          // Debug log for shipping code - only for ORDERS
+          if (baseSheetName === SHEET_TYPES.ORDERS && getCellString(cells[14])) {
+            console.log(
+              `[ORDERS] Row ${index + 2}: Found shipping code "${getCellString(cells[14])}" for customer "${getCellString(cells[1])}"`,
+            )
+          }
+
+          return rowData
         })
         .filter((item) => item.productName) // Filter out empty rows
     } else if (baseSheetName === SHEET_TYPES.PRODUCTS) {
