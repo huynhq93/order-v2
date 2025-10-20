@@ -26,139 +26,210 @@
       </template>
 
       <div class="content-container">
-        <!-- Grouped Orders -->
-        <div v-for="group in groupedOrders" :key="group.key" class="order-group">
-          <!-- Group Header -->
-          <div class="group-header">
-            <div class="group-info">
-              <div class="management-code">
-                <strong>{{ group.managementCode || 'Chưa có mã quản lý' }}</strong>
+        <!-- Management Code Groups -->
+        <div 
+          v-for="managementGroup in groupedOrdersByManagement" 
+          :key="managementGroup.managementCode || 'no-mgmt'" 
+          class="management-group"
+        >
+          <!-- Management Code Header -->
+          <div class="management-header" :style="{ '--mgmt-color': getManagementColor(managementGroup) }">
+            <div class="management-info">
+              <div class="management-title">
+                <el-icon class="mgmt-icon" :color="getManagementColor(managementGroup)">
+                  <Box />
+                </el-icon>
+                <h3 class="mgmt-text">
+                  {{ managementGroup.managementCode || 'Chưa có mã quản lý' }}
+                </h3>
+                <el-tag 
+                  :type="getManagementTagType(managementGroup)" 
+                  class="mgmt-badge"
+                >
+                  Order China
+                </el-tag>
+                <el-tag 
+                  v-if="hasPendingShippingOrders(managementGroup)"
+                  type="warning" 
+                  size="small"
+                  class="pending-indicator"
+                >
+                  <el-icon><Clock /></el-icon>
+                  Có đơn chờ xử lý
+                </el-tag>
               </div>
-              <div class="shipping-code" v-if="group.shippingCode">
-                Mã vận đơn: <el-tag type="primary">{{ group.shippingCode }}</el-tag>
+              <div class="management-stats">
+                <el-tag type="info" size="small" class="stats-tag">
+                  <el-icon><Document /></el-icon>
+                  {{ managementGroup.orders.length }} đơn hàng
+                </el-tag>
+                <el-tag type="success" size="small" class="stats-tag">
+                  <el-icon><Money /></el-icon>
+                  {{ formatCurrency(calculateManagementTotal(managementGroup)) }}
+                </el-tag>
+                <el-tag :type="getManagementSheetTypeTagType(managementGroup)" size="small" class="stats-tag">
+                  {{ getManagementSheetTypesText(managementGroup) }}
+                </el-tag>
               </div>
-              <div class="orders-count">
-                {{ group.orders.length }} đơn hàng
-              </div>
-            </div>
-            
-            <!-- Shipping Code Actions for groups without shipping code -->
-            <div class="group-actions" v-if="!group.shippingCode && selectedOrdersInGroup(group.key).length > 0">
-              <el-input
-                v-model="groupShippingCodes[group.key]"
-                placeholder="Nhập mã vận đơn"
-                style="width: 200px; margin-right: 12px;"
-                size="default"
-              >
-                <template #prefix>
-                  <el-icon><Van /></el-icon>
-                </template>
-              </el-input>
-              <el-button
-                type="primary"
-                @click="applyShippingCodeToGroup(group.key)"
-                :disabled="!groupShippingCodes[group.key]?.trim()"
-                size="default"
-              >
-                Thêm mã vận đơn
-              </el-button>
-            </div>
-            
-            <!-- Status Update for groups with shipping code -->
-            <div class="group-actions" v-if="group.shippingCode">
-              <el-select
-                v-model="groupStatuses[group.key]"
-                placeholder="Chọn trạng thái"
-                style="width: 180px; margin-right: 12px;"
-                size="default"
-              >
-                <el-option label="Đang giao" :value="ORDER_STATUSES.SALES.DANG_GIAO" />
-                <el-option label="Đã giao" :value="ORDER_STATUSES.SALES.DA_GIAO" />
-                <el-option label="Hoàn trả" :value="ORDER_STATUSES.SALES.HOAN_TRA" />
-              </el-select>
-              <el-button
-                type="success"
-                @click="updateGroupStatus(group.key)"
-                :disabled="!groupStatuses[group.key]"
-                size="default"
-              >
-                Cập nhật trạng thái
-              </el-button>
             </div>
           </div>
-          
-          <!-- Orders Table for this group -->
-          <el-table
-            :data="group.orders"
-            row-key="uniqueId"
-            style="width: 100%"
-            @selection-change="(selection) => handleGroupSelectionChange(group.key, selection)"
-          >
-            <!-- Checkbox only for orders without shipping code -->
-            <el-table-column 
-              v-if="!group.shippingCode" 
-              type="selection" 
-              width="55" 
-            />
-            
-            <el-table-column prop="date" label="Ngày" width="80" />
-            
-            <el-table-column label="Sheet" width="80">
-              <template #default="{ row }">
-                <el-tag :type="row.sheetType === 'customer' ? 'primary' : 'warning'" size="small">
-                  {{ row.sheetType === 'customer' ? 'Bán hàng' : 'CTV' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            
-            <el-table-column prop="customerName" label="Khách hàng" min-width="150">
-              <template #default="{ row }">
-                <div class="customer-info">
-                  <div class="customer-name">{{ row.customerName }}</div>
-                  <div class="customer-contact" v-if="row.contactInfo">
-                    {{ row.contactInfo.substring(0, 20) }}{{ row.contactInfo.length > 20 ? '...' : '' }}
+
+          <!-- Shipping Code Sub-Groups -->
+          <div class="shipping-groups">
+            <div 
+              v-for="[shippingCode, orders] in managementGroup.subGroups.entries()" 
+              :key="`${managementGroup.managementCode || 'no-mgmt'}-${shippingCode}`"
+              class="shipping-subgroup"
+              :class="getShippingGroupClass(shippingCode)"
+            >
+              <!-- Shipping Sub-Group Header -->
+              <div class="shipping-header" :class="getShippingHeaderClass(shippingCode)">
+                <div class="shipping-info">
+                  <div v-if="shippingCode !== 'no-shipping'" class="shipping-code">
+                    <el-icon class="ship-icon"><Van /></el-icon>
+                    <span>Mã vận đơn:</span>
+                    <el-tag type="primary" class="shipping-tag">
+                      {{ shippingCode }}
+                    </el-tag>
+                    <el-tag 
+                      :type="getShippingStatusType(orders)" 
+                      size="small"
+                      class="status-indicator"
+                    >
+                      {{ getShippingStatusText(orders) }}
+                    </el-tag>
+                  </div>
+                  <div v-else class="no-shipping">
+                    <el-icon class="ship-icon" color="#909399"><Van /></el-icon>
+                    <span class="no-shipping-text">Chưa có mã vận đơn</span>
+                    <el-tag type="warning" size="small" class="priority-tag">
+                      <el-icon><Clock /></el-icon>
+                      Ưu tiên xử lý
+                    </el-tag>
+                    <el-tag type="info" size="small">
+                      {{ orders.length }} đơn chờ xử lý
+                    </el-tag>
                   </div>
                 </div>
-              </template>
-            </el-table-column>
-            
-            <el-table-column label="Sản phẩm" min-width="200">
-              <template #default="{ row }">
-                <div class="product-info">
-                  <el-image
-                    v-if="row.productImage"
-                    :src="row.productImage"
-                    class="product-image"
-                    fit="cover"
-                  />
-                  <div class="product-details">
-                    <div class="product-name">{{ row.productName }}</div>
-                    <div class="product-variant">
-                      {{ row.color }} | {{ row.size }} | SL: {{ row.quantity }}
+                
+                <!-- Actions for shipping groups -->
+                <div class="shipping-actions" v-if="shippingCode === 'no-shipping' && selectedOrdersInShippingGroup(managementGroup.managementCode, shippingCode).length > 0">
+                  <el-input
+                    v-model="shippingGroupCodes[`${managementGroup.managementCode || 'no-mgmt'}-${shippingCode}`]"
+                    placeholder="Nhập mã vận đơn"
+                    style="width: 200px;"
+                    size="default"
+                  >
+                    <template #prefix>
+                      <el-icon><Van /></el-icon>
+                    </template>
+                  </el-input>
+                  <el-button
+                    type="primary"
+                    @click="applyShippingCodeToShippingGroup(managementGroup.managementCode, shippingCode)"
+                    :disabled="!shippingGroupCodes[`${managementGroup.managementCode || 'no-mgmt'}-${shippingCode}`]?.trim()"
+                    size="default"
+                  >
+                    Thêm mã vận đơn
+                  </el-button>
+                </div>
+                
+                <!-- Status Update for groups with shipping code -->
+                <div class="shipping-actions" v-if="shippingCode !== 'no-shipping'">
+                  <el-select
+                    v-model="shippingGroupStatuses[`${managementGroup.managementCode || 'no-mgmt'}-${shippingCode}`]"
+                    placeholder="Chọn trạng thái"
+                    style="width: 180px;"
+                    size="default"
+                  >
+                    <el-option label="Hàng về" :value="ORDER_STATUSES.SALES.HANG_VE" />
+                    <!-- <el-option label="Hoàn hàng" :value="ORDER_STATUSES.SALES.HOAN_HANG" /> -->
+                  </el-select>
+                  <el-button
+                    type="success"
+                    @click="updateShippingGroupStatus(managementGroup.managementCode, shippingCode)"
+                    :disabled="!shippingGroupStatuses[`${managementGroup.managementCode || 'no-mgmt'}-${shippingCode}`]"
+                    size="default"
+                  >
+                    Cập nhật trạng thái
+                  </el-button>
+                </div>
+              </div>
+              
+              <!-- Orders Table for this shipping sub-group -->
+              <el-table
+                :data="orders"
+                row-key="uniqueId"
+                style="width: 100%"
+                @selection-change="(selection: ExtendedOrder[]) => handleShippingGroupSelectionChange(managementGroup.managementCode, shippingCode, selection)"
+              >
+                <!-- Checkbox only for orders without shipping code -->
+                <el-table-column 
+                  v-if="shippingCode === 'no-shipping'" 
+                  type="selection" 
+                  width="55" 
+                />
+                
+                <el-table-column prop="date" label="Ngày" width="80" />
+                
+                <el-table-column label="Sheet" width="80">
+                  <template #default="{ row }">
+                    <el-tag :type="row.sheetType === 'customer' ? 'primary' : 'warning'" size="small">
+                      {{ row.sheetType === 'customer' ? 'Bán hàng' : 'CTV' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                
+                <el-table-column prop="customerName" label="Khách hàng" min-width="150">
+                  <template #default="{ row }">
+                    <div class="customer-info">
+                      <div class="customer-name">{{ row.customerName }}</div>
+                      <div class="customer-contact" v-if="row.contactInfo">
+                        {{ row.contactInfo.substring(0, 20) }}{{ row.contactInfo.length > 20 ? '...' : '' }}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </template>
-            </el-table-column>
-            
-            <el-table-column prop="total" label="Tổng tiền" width="120">
-              <template #default="{ row }">
-                <span class="price">{{ formatCurrency(row.total) }}</span>
-              </template>
-            </el-table-column>
-            
-            <el-table-column prop="status" label="Trạng thái" width="150">
-              <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)">
-                  {{ row.status }}
-                </el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
+                  </template>
+                </el-table-column>
+                
+                <el-table-column label="Sản phẩm" min-width="200">
+                  <template #default="{ row }">
+                    <div class="product-info">
+                      <el-image
+                        v-if="row.productImage"
+                        :src="row.productImage"
+                        class="product-image"
+                        fit="cover"
+                      />
+                      <div class="product-details">
+                        <div class="product-name">{{ row.productName }}</div>
+                        <div class="product-variant">
+                          {{ row.color }} | {{ row.size }} | SL: {{ row.quantity }}
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </el-table-column>
+                
+                <el-table-column prop="total" label="Tổng tiền" width="120">
+                  <template #default="{ row }">
+                    <span class="price">{{ formatCurrency(row.total) }}</span>
+                  </template>
+                </el-table-column>
+                
+                <el-table-column prop="status" label="Trạng thái" width="150">
+                  <template #default="{ row }">
+                    <el-tag :type="getStatusType(row.status)">
+                      {{ row.status }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </div>
         </div>
         
         <!-- Empty State -->
-        <div v-if="groupedOrders.length === 0" class="empty-state">
+        <div v-if="groupedOrdersByManagement.length === 0" class="empty-state">
           <el-empty description="Không có đơn hàng nào" />
         </div>
       </div>
@@ -176,14 +247,25 @@ import type { Order } from '@/types/order'
 import { ElMessage } from 'element-plus'
 import { 
   Refresh, 
-  Van
+  Van,
+  Box,
+  Document,
+  Money,
+  Clock
 } from '@element-plus/icons-vue'
 import { ORDER_STATUSES, getOrderStatusType } from '@/constants/orderStatus'
 
 // Extended Order type with unique ID for multi-sheet support
 interface ExtendedOrder extends Order {
   uniqueId: string
-  sheetType: string
+  sheetType: 'customer' | 'ctv'
+}
+
+// Management Group type
+interface ManagementGroup {
+  managementCode: string | null
+  orders: ExtendedOrder[]
+  subGroups: Map<string, ExtendedOrder[]>
 }
 
 const props = defineProps<{
@@ -201,43 +283,68 @@ const selectedSheets = ref<string[]>(['customer', 'ctv'])
 const loading = ref(false)
 const updating = ref(false)
 const allOrders = ref<ExtendedOrder[]>([])
-const groupSelections = ref<Record<string, ExtendedOrder[]>>({})
-const groupShippingCodes = ref<Record<string, string>>({})
-const groupStatuses = ref<Record<string, string>>({})
+const shippingGroupSelections = ref<Record<string, ExtendedOrder[]>>({})
+const shippingGroupCodes = ref<Record<string, string>>({})
+const shippingGroupStatuses = ref<Record<string, string>>({})
 
-// Computed
-const groupedOrders = computed(() => {
+// Computed - Group orders by management code only
+const groupedOrdersByManagement = computed(() => {
   const groups = new Map<string, {
-    key: string
     managementCode: string | null
-    shippingCode: string | null
     orders: ExtendedOrder[]
+    subGroups: Map<string, ExtendedOrder[]>
   }>()
   
-  // Group orders by management code and shipping code
+  // First group by management code
   allOrders.value.forEach(order => {
     const managementCode = order.managementCode || null
-    const shippingCode = order.shippingCode || null
-    const key = `${managementCode || 'no-mgmt'}-${shippingCode || 'no-ship'}`
+    const key = managementCode || 'no-mgmt'
     
     if (!groups.has(key)) {
       groups.set(key, {
-        key,
         managementCode,
-        shippingCode,
-        orders: []
+        orders: [],
+        subGroups: new Map()
       })
     }
     
-    groups.get(key)!.orders.push(order)
+    const group = groups.get(key)!
+    group.orders.push(order)
+    
+    // Sub-group by shipping code within the management code group
+    const shippingCode = order.shippingCode || 'no-shipping'
+    if (!group.subGroups.has(shippingCode)) {
+      group.subGroups.set(shippingCode, [])
+    }
+    group.subGroups.get(shippingCode)!.push(order)
   })
   
-  // Sort groups: no shipping code first, then by management code
-  return Array.from(groups.values()).sort((a, b) => {
-    if (!a.shippingCode && b.shippingCode) return -1
-    if (a.shippingCode && !b.shippingCode) return 1
+  // Sort groups: management codes first, then no management code
+  const sortedGroups = Array.from(groups.values()).sort((a, b) => {
+    if (!a.managementCode && b.managementCode) return 1
+    if (a.managementCode && !b.managementCode) return -1
     return (a.managementCode || '').localeCompare(b.managementCode || '')
   })
+  
+  // Sort sub-groups within each management group: no-shipping first, then by shipping code
+  sortedGroups.forEach(group => {
+    const sortedSubGroups = new Map<string, ExtendedOrder[]>()
+    const subGroupEntries = Array.from(group.subGroups.entries()).sort(([keyA], [keyB]) => {
+      // 'no-shipping' groups come first
+      if (keyA === 'no-shipping' && keyB !== 'no-shipping') return -1
+      if (keyA !== 'no-shipping' && keyB === 'no-shipping') return 1
+      // Then sort alphabetically by shipping code
+      return keyA.localeCompare(keyB)
+    })
+    
+    subGroupEntries.forEach(([key, orders]) => {
+      sortedSubGroups.set(key, orders)
+    })
+    
+    group.subGroups = sortedSubGroups
+  })
+  
+  return sortedGroups
 })
 
 // Methods
@@ -287,31 +394,35 @@ const refreshData = async () => {
   }
 }
 
-const handleGroupSelectionChange = (groupKey: string, selection: ExtendedOrder[]) => {
-  groupSelections.value[groupKey] = selection
+// New methods for management + shipping group structure
+const handleShippingGroupSelectionChange = (managementCode: string | null, shippingCode: string, selection: ExtendedOrder[]) => {
+  const key = `${managementCode || 'no-mgmt'}-${shippingCode}`
+  shippingGroupSelections.value[key] = selection
 }
 
-const selectedOrdersInGroup = (groupKey: string) => {
-  return groupSelections.value[groupKey] || []
+const selectedOrdersInShippingGroup = (managementCode: string | null, shippingCode: string) => {
+  const key = `${managementCode || 'no-mgmt'}-${shippingCode}`
+  return shippingGroupSelections.value[key] || []
 }
 
-const applyShippingCodeToGroup = async (groupKey: string) => {
-  const selectedOrders = selectedOrdersInGroup(groupKey)
-  const shippingCode = groupShippingCodes.value[groupKey]?.trim()
+const applyShippingCodeToShippingGroup = async (managementCode: string | null, shippingCode: string) => {
+  const selectedOrders = selectedOrdersInShippingGroup(managementCode, shippingCode)
+  const key = `${managementCode || 'no-mgmt'}-${shippingCode}`
+  const newShippingCode = shippingGroupCodes.value[key]?.trim()
   
   if (selectedOrders.length === 0) {
     ElMessage.warning('Vui lòng chọn ít nhất một đơn hàng')
     return
   }
   
-  if (!shippingCode) {
+  if (!newShippingCode) {
     ElMessage.warning('Vui lòng nhập mã vận đơn')
     return
   }
   
   updating.value = true
   try {
-    const upperShippingCode = shippingCode.toUpperCase()
+    const upperShippingCode = newShippingCode.toUpperCase()
     
     // Update each selected order
     for (const order of selectedOrders) {
@@ -319,7 +430,7 @@ const applyShippingCodeToGroup = async (groupKey: string) => {
         order.rowIndex,
         order.managementCode || '',
         upperShippingCode,
-        ORDER_STATUSES.SALES.DANG_GIAO,
+        order.status,
         props.selectedDate,
         order.sheetType as 'customer' | 'ctv'
       )
@@ -328,8 +439,8 @@ const applyShippingCodeToGroup = async (groupKey: string) => {
     ElMessage.success(`Đã thêm mã vận đơn ${upperShippingCode} cho ${selectedOrders.length} đơn hàng`)
     
     // Clear group data
-    delete groupSelections.value[groupKey]
-    delete groupShippingCodes.value[groupKey]
+    delete shippingGroupSelections.value[key]
+    delete shippingGroupCodes.value[key]
     
     // Refresh data
     await refreshData()
@@ -343,19 +454,23 @@ const applyShippingCodeToGroup = async (groupKey: string) => {
   }
 }
 
-const updateGroupStatus = async (groupKey: string) => {
-  const group = groupedOrders.value.find(g => g.key === groupKey)
-  const newStatus = groupStatuses.value[groupKey]
+const updateShippingGroupStatus = async (managementCode: string | null, shippingCode: string) => {
+  const key = `${managementCode || 'no-mgmt'}-${shippingCode}`
+  const newStatus = shippingGroupStatuses.value[key]
   
-  if (!group || !newStatus) {
+  // Find orders in this shipping group
+  const managementGroup = groupedOrdersByManagement.value.find(g => g.managementCode === managementCode)
+  const orders = managementGroup?.subGroups.get(shippingCode) || []
+  
+  if (!newStatus || orders.length === 0) {
     ElMessage.warning('Vui lòng chọn trạng thái')
     return
   }
   
   updating.value = true
   try {
-    // Update all orders in the group
-    for (const order of group.orders) {
+    // Update all orders in the shipping group
+    for (const order of orders) {
       await store.updateOrderWithShipping(
         order.rowIndex,
         order.managementCode || '',
@@ -366,10 +481,10 @@ const updateGroupStatus = async (groupKey: string) => {
       )
     }
     
-    ElMessage.success(`Đã cập nhật trạng thái cho ${group.orders.length} đơn hàng`)
+    ElMessage.success(`Đã cập nhật trạng thái cho ${orders.length} đơn hàng`)
     
     // Clear group status
-    delete groupStatuses.value[groupKey]
+    delete shippingGroupStatuses.value[key]
     
     // Refresh data
     await refreshData()
@@ -384,6 +499,72 @@ const updateGroupStatus = async (groupKey: string) => {
 }
 
 const getStatusType = getOrderStatusType
+
+// UI Helper Methods for new structure
+const getManagementColor = (managementGroup: ManagementGroup) => {
+  const hasShippingCodes = Array.from(managementGroup.subGroups.keys()).some(key => key !== 'no-shipping')
+  if (hasShippingCodes) return '#67c23a' // Green
+  return '#e6a23c' // Orange
+}
+
+const getManagementTagType = (managementGroup: ManagementGroup) => {
+  const hasShippingCodes = Array.from(managementGroup.subGroups.keys()).some(key => key !== 'no-shipping')
+  if (hasShippingCodes) return 'success'
+  return 'warning'
+}
+
+const hasPendingShippingOrders = (managementGroup: ManagementGroup) => {
+  return managementGroup.subGroups.has('no-shipping') && 
+         (managementGroup.subGroups.get('no-shipping')?.length || 0) > 0
+}
+
+const calculateManagementTotal = (managementGroup: ManagementGroup) => {
+  return managementGroup.orders.reduce((total: number, order: ExtendedOrder) => {
+    const amount = parseFloat(order.total?.toString().replace(/[^\d.]/g, '')) || 0
+    return total + amount
+  }, 0)
+}
+
+const getManagementSheetTypeTagType = (managementGroup: ManagementGroup) => {
+  const sheetTypes = [...new Set(managementGroup.orders.map((order: ExtendedOrder) => order.sheetType))]
+  if (sheetTypes.length > 1) return 'warning'
+  return sheetTypes[0] === 'customer' ? 'primary' : 'success'
+}
+
+const getManagementSheetTypesText = (managementGroup: ManagementGroup) => {
+  const sheetTypes = [...new Set(managementGroup.orders.map((order: ExtendedOrder) => order.sheetType))]
+  if (sheetTypes.length > 1) return 'Hỗn hợp'
+  return sheetTypes[0] === 'customer' ? 'Bán hàng' : 'CTV'
+}
+
+const getShippingGroupClass = (shippingCode: string) => {
+  return {
+    'has-shipping-code': shippingCode !== 'no-shipping',
+    'no-shipping-code': shippingCode === 'no-shipping'
+  }
+}
+
+const getShippingHeaderClass = (shippingCode: string) => {
+  if (shippingCode !== 'no-shipping') return 'header-complete'
+  return 'header-pending'
+}
+
+const getShippingStatusType = (orders: ExtendedOrder[]) => {
+  const statuses = [...new Set(orders.map(order => order.status))]
+  if (statuses.includes(ORDER_STATUSES.SALES.THANH_CONG)) return 'success'
+  if (statuses.includes(ORDER_STATUSES.SALES.DANG_GIAO)) return 'warning'
+  return 'primary'
+}
+
+const getShippingStatusText = (orders: ExtendedOrder[]) => {
+  const statuses = [...new Set(orders.map(order => order.status))]
+  if (statuses.length > 1) return 'Hỗn hợp'
+  if (statuses.includes(ORDER_STATUSES.SALES.THANH_CONG)) return 'Hoàn thành'
+  if (statuses.includes(ORDER_STATUSES.SALES.DANG_GIAO)) return 'Đang giao'
+  return 'Chờ xử lý'
+}
+
+
 
 // Watch selected sheets changes
 watch(selectedSheets, () => {
@@ -434,44 +615,364 @@ onMounted(() => {
   }
   
   .content-container {
+    .management-group {
+      margin-bottom: 32px;
+      border: 2px solid #e4e7ed;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      
+      .management-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        padding: 24px;
+        border-bottom: 2px solid var(--mgmt-color, #e4e7ed);
+        position: relative;
+        
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 6px;
+          background: linear-gradient(90deg, var(--mgmt-color, #e4e7ed) 0%, transparent 100%);
+        }
+        
+        .management-info {
+          .management-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            
+            .mgmt-icon {
+              font-size: 24px;
+            }
+            
+            .mgmt-text {
+              font-size: 20px;
+              color: #1a202c;
+              margin: 0;
+              font-weight: 700;
+            }
+            
+            .mgmt-badge {
+              font-weight: 600;
+              border-radius: 16px;
+              padding: 4px 12px;
+            }
+            
+            .pending-indicator {
+              display: flex;
+              align-items: center;
+              gap: 4px;
+              font-weight: 600;
+              border-radius: 12px;
+              animation: priorityPulse 2s infinite;
+              
+              .el-icon {
+                font-size: 12px;
+              }
+            }
+          }
+          
+          .management-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            
+            .stats-tag {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              border-radius: 10px;
+              font-weight: 500;
+              padding: 6px 12px;
+              
+              .el-icon {
+                font-size: 14px;
+              }
+            }
+          }
+        }
+      }
+      
+      .shipping-groups {
+        .shipping-subgroup {
+          border-bottom: 1px solid #f1f5f9;
+          
+          &:last-child {
+            border-bottom: none;
+          }
+          
+          &.has-shipping-code {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+          }
+          
+          &.no-shipping-code {
+            background: linear-gradient(135deg, #fef7e6 0%, #fdf2d9 100%);
+            border-left: 4px solid #f59e0b;
+            position: relative;
+            
+            &::before {
+              content: '📋 Ưu tiên xử lý';
+              position: absolute;
+              top: 8px;
+              right: 12px;
+              background: rgba(245, 158, 11, 0.1);
+              color: #f59e0b;
+              font-size: 11px;
+              font-weight: 600;
+              padding: 2px 6px;
+              border-radius: 4px;
+              border: 1px solid rgba(245, 158, 11, 0.3);
+            }
+          }
+          
+          .shipping-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            
+            &.header-complete {
+              background: rgba(103, 194, 58, 0.05);
+            }
+            
+            &.header-pending {
+              background: rgba(230, 162, 60, 0.05);
+            }
+            
+            .shipping-info {
+              flex: 1;
+              
+              .shipping-code {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                
+                .ship-icon {
+                  font-size: 18px;
+                  color: #3b82f6;
+                }
+                
+                .shipping-tag {
+                  font-weight: 600;
+                  font-size: 14px;
+                  padding: 4px 12px;
+                  border-radius: 8px;
+                }
+                
+                .status-indicator {
+                  font-weight: 500;
+                  border-radius: 12px;
+                }
+              }
+              
+              .no-shipping {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex-wrap: wrap;
+                
+                .ship-icon {
+                  font-size: 18px;
+                }
+                
+                .no-shipping-text {
+                  color: #64748b;
+                  font-weight: 500;
+                }
+                
+                .priority-tag {
+                  display: flex;
+                  align-items: center;
+                  gap: 4px;
+                  font-weight: 600;
+                  animation: priorityPulse 2s infinite;
+                  border-radius: 12px;
+                  
+                  .el-icon {
+                    font-size: 12px;
+                  }
+                }
+              }
+            }
+            
+            .shipping-actions {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              background: rgba(255, 255, 255, 0.95);
+              padding: 12px 16px;
+              border-radius: 12px;
+              border: 1px solid rgba(0, 0, 0, 0.08);
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+          }
+          
+          :deep(.el-table) {
+            border: none;
+            
+            .el-table__header {
+              th {
+                background: #fafbfc;
+                border-bottom: 1px solid #e2e8f0;
+                font-weight: 600;
+                color: #475569;
+              }
+            }
+            
+            .el-table__body {
+              tr:hover > td {
+                background: rgba(59, 130, 246, 0.04) !important;
+              }
+            }
+          }
+        }
+      }
+    }
+    
     .order-group {
       margin-bottom: 24px;
-      border: 1px solid #e4e7ed;
-      border-radius: 8px;
+      border: 2px solid #e4e7ed;
+      border-radius: 12px;
       overflow: hidden;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      
+      &.complete-group {
+        border-color: #67c23a;
+        box-shadow: 0 4px 12px rgba(103, 194, 58, 0.2);
+      }
+      
+      &.pending-group {
+        border-color: #e6a23c;
+        box-shadow: 0 4px 12px rgba(230, 162, 60, 0.2);
+      }
+      
+      &.no-management-code {
+        border-color: #909399;
+        box-shadow: 0 2px 8px rgba(144, 147, 153, 0.15);
+      }
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+      }
       
       .group-header {
-        background: #f5f7fa;
-        padding: 16px;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        padding: 20px;
         border-bottom: 1px solid #e4e7ed;
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
+        position: relative;
+        
+        &.header-complete {
+          background: linear-gradient(135deg, #f0f9ff 0%, #e8f5e8 100%);
+        }
+        
+        &.header-pending {
+          background: linear-gradient(135deg, #fef7e6 0%, #fdf2d9 100%);
+        }
+        
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: linear-gradient(90deg, var(--group-color, #e4e7ed) 0%, transparent 100%);
+        }
         
         .group-info {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
+          flex: 1;
           
-          .management-code {
-            font-size: 16px;
-            color: #303133;
+          .management-code-section {
+            margin-bottom: 12px;
+            
+            .management-code {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              margin-bottom: 8px;
+              
+              .mgmt-icon {
+                font-size: 20px;
+              }
+              
+              .mgmt-text {
+                font-size: 18px;
+                color: #303133;
+                font-weight: 600;
+              }
+              
+              .mgmt-badge {
+                font-weight: 500;
+                border-radius: 12px;
+              }
+            }
+            
+            .group-stats {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 8px;
+              
+              .stats-tag {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                border-radius: 8px;
+                font-weight: 500;
+                
+                .el-icon {
+                  font-size: 12px;
+                }
+              }
+            }
           }
           
           .shipping-code {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             font-size: 14px;
             color: #606266;
-          }
-          
-          .orders-count {
-            font-size: 12px;
-            color: #909399;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            
+            .ship-icon {
+              color: #409eff;
+              font-size: 16px;
+            }
+            
+            .shipping-tag {
+              font-weight: 600;
+              border-radius: 6px;
+            }
+            
+            .status-indicator {
+              font-weight: 500;
+              border-radius: 12px;
+            }
           }
         }
         
         .group-actions {
           display: flex;
           align-items: center;
+          gap: 12px;
+          background: rgba(255, 255, 255, 0.9);
+          padding: 12px 16px;
+          border-radius: 8px;
+          border: 1px solid rgba(0, 0, 0, 0.1);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
       }
       
@@ -586,30 +1087,172 @@ onMounted(() => {
     }
     
     .content-container {
+      .management-group {
+        margin-bottom: 20px;
+        
+        .management-header {
+          padding: 16px;
+          
+          .management-info {
+            .management-title {
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 8px;
+              
+              .mgmt-text {
+                font-size: 18px;
+              }
+            }
+            
+            .management-stats {
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 8px;
+            }
+          }
+        }
+        
+        .shipping-groups {
+          .shipping-subgroup {
+            .shipping-header {
+              flex-direction: column;
+              gap: 16px;
+              align-items: stretch;
+              padding: 16px;
+              
+              .shipping-info {
+                .shipping-code {
+                  flex-wrap: wrap;
+                  gap: 6px;
+                }
+                
+                .no-shipping {
+                  flex-wrap: wrap;
+                  gap: 6px;
+                }
+              }
+              
+              .shipping-actions {
+                flex-direction: column;
+                gap: 8px;
+                
+                .el-input {
+                  width: 100% !important;
+                }
+                
+                .el-select {
+                  width: 100% !important;
+                }
+              }
+            }
+          }
+        }
+      }
+      
       .order-group {
+        margin-bottom: 16px;
+        
         .group-header {
           flex-direction: column;
-          gap: 12px;
+          gap: 16px;
           align-items: stretch;
+          padding: 16px;
+          
+          .group-info {
+            .management-code-section {
+              .management-code {
+                .mgmt-text {
+                  font-size: 16px;
+                }
+              }
+              
+              .group-stats {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+              }
+            }
+            
+            .shipping-code {
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 6px;
+              padding: 12px;
+            }
+          }
           
           .group-actions {
-            justify-content: stretch;
+            flex-direction: column;
+            gap: 8px;
             
             .el-input {
               width: 100% !important;
-              margin-right: 0 !important;
-              margin-bottom: 8px;
             }
             
             .el-select {
               width: 100% !important;
-              margin-right: 0 !important;
-              margin-bottom: 8px;
             }
           }
         }
       }
     }
   }
+}
+
+/* Animations */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes priorityPulse {
+  0% { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+  100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.order-group {
+  animation: slideIn 0.3s ease-out;
+}
+
+.mgmt-badge {
+  animation: pulse 2s infinite;
+}
+
+/* Enhanced visual hierarchy */
+.order-group.complete-group .mgmt-badge {
+  background: linear-gradient(135deg, #67c23a, #85ce61) !important;
+  color: white;
+}
+
+.order-group.pending-group .mgmt-badge {
+  background: linear-gradient(135deg, #e6a23c, #f7ba2a) !important;  
+  color: white;
+}
+
+.order-group.no-management-code .mgmt-badge {
+  background: linear-gradient(135deg, #909399, #a6a9ad) !important;
+  color: white;
 }
 </style>

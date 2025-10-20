@@ -114,9 +114,19 @@ export const useOrdersStore = defineStore('orders', {
       customerType: 'customer' | 'ctv'
     ) {
       try {
+        // First ensure we have the latest orders for this sheet type
+        await this.fetchOrders(selectedDate, customerType)
+        
         const order = this.orders.find((o) => o.rowIndex === rowIndex)
         if (!order) {
-          throw new Error('Order not found')
+          // Log more details for debugging
+          console.error('Order not found:', {
+            rowIndex,
+            customerType,
+            selectedDate,
+            availableOrders: this.orders.map(o => ({ rowIndex: o.rowIndex, customerName: o.customerName }))
+          })
+          throw new Error(`Order not found: rowIndex ${rowIndex} in ${customerType} sheet for ${selectedDate.month}/${selectedDate.year}`)
         }
 
         // Create updated order with management code, shipping code and new status
