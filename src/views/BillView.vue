@@ -186,9 +186,9 @@
                       <span class="stt-number">{{ index + 1 }}</span>
                       <div class="actions-container">
                         <el-checkbox 
-                          :model-value="item.status === 'ĐANG CHỜ GIAO'"
+                          :model-value="item.status === ORDER_STATUSES.SALES.DANG_CHO_GIAO"
                           @change="(value: boolean) => handleStatusChange(item, value)"
-                          :disabled="item.status !== 'NHẬN ĐƠN' && item.status !== 'ĐANG CHỜ GIAO'"
+                          :disabled="item.status !== ORDER_STATUSES.SALES.HANG_VE && item.status !== ORDER_STATUSES.SALES.DANG_CHO_GIAO"
                           title="Báo đơn"
                         />
                         <el-button
@@ -269,6 +269,7 @@ import { ElMessage } from 'element-plus'
 import { Management, Document, DocumentAdd, Van, Delete } from '@element-plus/icons-vue'
 import { useOrdersStore } from '@/stores/orders'
 import type { Order } from '@/types/order'
+import { ORDER_STATUSES, getOrderStatusType } from '@/constants/orderStatus'
 
 const router = useRouter()
 const ordersStore = useOrdersStore()
@@ -377,15 +378,16 @@ const generateBill = async () => {
         billForm.value.customerType,
       )
 
-      // Filter orders by customer name (case insensitive, partial match)
-      // and only show orders with status "NHẬN ĐƠN" or "ĐANG CHỜ GIAO"
+      // Filter orders by customer name (exact and partial match with word boundaries)
+      // and only show orders with status "HANG_VE" or "DANG_CHO_GIAO"
       const searchName = billForm.value.customerName.toLowerCase().trim()
       const customerOrders = ordersStore.orders.filter((order) => {
         const customerName = order.customerName?.toLowerCase() || ''
-        const nameMatch = customerName.includes(searchName) ||
-          searchName.split(' ').every((part) => customerName.includes(part))
         
-        const validStatus = order.status === 'NHẬN ĐƠN' || order.status === 'ĐANG CHỜ GIAO'
+        const nameMatch = customerName === searchName
+        
+        const validStatus = order.status === ORDER_STATUSES.SALES.HANG_VE || 
+                           order.status === ORDER_STATUSES.SALES.DANG_CHO_GIAO
         
         return nameMatch && validStatus
       })
@@ -481,7 +483,7 @@ const printBill = () => {
 }
 
 const handleStatusChange = async (order: Order, checked: boolean) => {
-  const newStatus = checked ? 'ĐANG CHỜ GIAO' : 'NHẬN ĐƠN'
+  const newStatus = checked ? ORDER_STATUSES.SALES.DANG_CHO_GIAO : ORDER_STATUSES.SALES.HANG_VE
   
   try {
     // Update status in store

@@ -12,6 +12,11 @@
                   <el-checkbox label="ctv">CTV</el-checkbox>
                 </el-checkbox-group>
               </div>
+              <div class="status-filter">
+                <el-checkbox v-model="showDeliveredOrders" @change="refreshData">
+                  Hiển thị đơn hàng đã về
+                </el-checkbox>
+              </div>
               <el-button 
                 type="primary" 
                 @click="refreshData"
@@ -143,6 +148,7 @@
                     size="default"
                   >
                     <el-option label="Hàng về" :value="ORDER_STATUSES.SALES.HANG_VE" />
+                    <el-option label="Đã đặt hàng" :value="ORDER_STATUSES.SALES.DA_DAT_HANG" />
                     <!-- <el-option label="Hoàn hàng" :value="ORDER_STATUSES.SALES.HOAN_HANG" /> -->
                   </el-select>
                   <el-button
@@ -280,6 +286,7 @@ const store = useOrdersStore()
 
 // Reactive data
 const selectedSheets = ref<string[]>(['customer', 'ctv'])
+const showDeliveredOrders = ref(false)
 const loading = ref(false)
 const updating = ref(false)
 const allOrders = ref<ExtendedOrder[]>([])
@@ -362,7 +369,13 @@ const refreshData = async () => {
       await store.fetchOrders(props.selectedDate, sheetType as 'customer' | 'ctv')
       // Add sheet type info and unique ID to orders
       const ordersWithSheetType = store.orders
-        .filter(order => order.status === ORDER_STATUSES.SALES.DA_DAT_HANG)
+        .filter(order => {
+          // Always include orders with DA_DAT_HANG status
+          if (order.status === ORDER_STATUSES.SALES.DA_DAT_HANG) return true
+          // Include orders with HANG_VE status only if checkbox is checked
+          if (showDeliveredOrders.value && order.status === ORDER_STATUSES.SALES.HANG_VE) return true
+          return false
+        })
         .map(order => ({
           ...order,
           sheetType,
@@ -571,6 +584,11 @@ watch(selectedSheets, () => {
   refreshData()
 }, { deep: true })
 
+// Watch show delivered orders checkbox changes
+watch(showDeliveredOrders, () => {
+  refreshData()
+})
+
 // Watch selected date changes
 watch(() => props.selectedDate, () => {
   refreshData()
@@ -608,6 +626,15 @@ onMounted(() => {
           :deep(.el-checkbox-group) {
             display: flex;
             gap: 12px;
+          }
+        }
+        
+        .status-filter {
+          margin-right: 16px;
+          
+          :deep(.el-checkbox) {
+            font-weight: 500;
+            color: #606266;
           }
         }
       }
@@ -1079,6 +1106,11 @@ onMounted(() => {
           justify-content: center;
           
           .sheet-selector {
+            margin-right: 0;
+            margin-bottom: 12px;
+          }
+          
+          .status-filter {
             margin-right: 0;
             margin-bottom: 12px;
           }

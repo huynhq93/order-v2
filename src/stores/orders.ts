@@ -60,7 +60,7 @@ export const useOrdersStore = defineStore('orders', {
     async addOrder(order: Omit<Order, 'rowIndex'>, customerType: 'customer' | 'ctv' = 'customer') {
       try {
         await addOrder(order, customerType)
-        const rowIndex = this.orders.length + 1;
+        const rowIndex = this.orders.length;
         this.orders.push({...order, ...{rowIndex}})
       } catch (err) {
         this.error = err instanceof Error ? err.message : 'Failed to add order'

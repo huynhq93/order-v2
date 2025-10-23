@@ -244,16 +244,21 @@ router.put('/:rowIndex', async (req, res) => {
     }
 
     // Extract month/year from the order's month field (format: "10/2025")
-    const [monthStr, yearStr] = month.split('/')
-    const selectedDate = {
-      month: parseInt(monthStr),
-      year: parseInt(yearStr),
+    let sheetDate = dateObj;
+    if (month) {
+      const [monthStr, yearStr] = month.split('/')
+      const selectedDate = {
+        month: parseInt(monthStr),
+        year: parseInt(yearStr),
+      }
+      sheetDate = new Date(selectedDate.year, selectedDate.month - 1, 1)
     }
+    
 
     // Tạo sheet name theo format tháng/năm
     const sheetName = getMonthlySheetName(
       SHEET_TYPES[sheetType],
-      month ? new Date(selectedDate.year, selectedDate.month - 1, 1) : dateObj,
+      sheetDate,
     )
 
     // Row trong sheet (rowIndex + 4 vì sheet bắt đầu từ row 4)
