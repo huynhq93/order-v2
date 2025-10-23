@@ -40,11 +40,20 @@
           <el-row :gutter="20">
             <el-col :xs="24" :sm="12">
               <el-form-item label="Tên khách hàng" required>
-                <el-input
-                  v-model="billForm.customerName"
-                  placeholder="Nhập tên khách hàng"
-                  clearable
-                />
+                <div class="customer-name-container">
+                  <el-input
+                    v-model="billForm.customerName"
+                    placeholder="Nhập tên khách hàng"
+                    clearable
+                    class="customer-name-input"
+                  />
+                  <el-button
+                    :icon="Search"
+                    @click="openCustomerSearchModal"
+                    title="Tìm kiếm khách hàng"
+                    class="search-button"
+                  />
+                </div>
               </el-form-item>
             </el-col>
 
@@ -259,6 +268,99 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- Customer Search Modal -->
+    <el-dialog
+      v-model="customerSearchVisible"
+      title="Danh sách khách hàng có thể tạo hóa đơn"
+      width="90%"
+      :max-width="800"
+      @close="closeCustomerSearchModal"
+    >
+      <div class="customer-search-content">
+        <div v-if="customerSearchLoading" class="loading-container">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          <span>Đang tải danh sách khách hàng...</span>
+        </div>
+        
+        <div v-else>
+          <div v-if="availableCustomers.length === 0" class="empty-state">
+            <el-empty description="Không có khách hàng nào có thể tạo hóa đơn" />
+          </div>
+          
+          <div v-else class="customers-list">
+            <div 
+              v-for="customer in availableCustomers" 
+              :key="customer.name"
+              class="customer-item"
+              @click="selectCustomer(customer.name)"
+            >
+              <div class="customer-info">
+                <h4 class="customer-name">{{ customer.name }}</h4>
+                <div class="customer-stats">
+                  <el-tag 
+                    type="success" 
+                    @click.stop="showCustomerOrders(customer.name, ORDER_STATUSES.SALES.HANG_VE)"
+                    class="clickable-tag"
+                  >
+                    Hàng về: {{ customer.hangVeCount }}
+                  </el-tag>
+                  <el-tag 
+                    type="warning"
+                    @click.stop="showCustomerOrders(customer.name, ORDER_STATUSES.SALES.DANG_CHO_GIAO)"
+                    class="clickable-tag"
+                  >
+                    Đang chờ giao: {{ customer.dangChoGiaoCount }}
+                  </el-tag>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
+
+    <!-- Customer Orders Detail Modal -->
+    <el-dialog
+      v-model="customerOrdersVisible"
+      :title="`${selectedCustomerForOrders} - ${selectedStatusForOrders}`"
+      width="80%"
+      :max-width="600"
+      @close="closeCustomerOrdersModal"
+    >
+      <div class="customer-orders-content">
+        <div v-if="customerOrders.length === 0" class="empty-state">
+          <el-empty description="Không có đơn hàng nào" />
+        </div>
+        
+        <div v-else class="orders-grid">
+          <div 
+            v-for="order in customerOrders" 
+            :key="`${order.rowIndex}-${order.date}`"
+            class="order-item"
+          >
+            <div class="order-image">
+              <el-image
+                v-if="order.productImage"
+                :src="order.productImage"
+                fit="cover"
+                class="product-img"
+                @click="openImageModal(order.productImage, order.productName)"
+              />
+              <div v-else class="no-image">Không có ảnh</div>
+            </div>
+            <div class="order-details">
+              <div class="product-code">{{ order.productCode || 'Không có mã' }}</div>
+              <div class="product-name">{{ order.productName || 'Không có tên' }}</div>
+              <div class="order-info">
+                <span>{{ order.color }} | {{ order.size }} | SL: {{ order.quantity }}</span>
+              </div>
+              <div class="order-price">{{ formatCurrency(parseFloat(order.total?.replace(/[^\d]/g, '') || '0')) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -266,7 +368,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Management, Document, DocumentAdd, Van, Delete } from '@element-plus/icons-vue'
+import { Management, Document, DocumentAdd, Van, Delete, Search, Loading } from '@element-plus/icons-vue'
 import { useOrdersStore } from '@/stores/orders'
 import type { Order } from '@/types/order'
 import { ORDER_STATUSES, getOrderStatusType } from '@/constants/orderStatus'
@@ -328,6 +430,21 @@ const billContent = ref<HTMLElement>()
 const imageModalVisible = ref(false)
 const imageModalSrc = ref('')
 const imageModalTitle = ref('')
+
+// Customer search modal state
+const customerSearchVisible = ref(false)
+const customerSearchLoading = ref(false)
+const availableCustomers = ref<Array<{
+  name: string
+  hangVeCount: number
+  dangChoGiaoCount: number
+}>>([])
+
+// Customer orders modal state
+const customerOrdersVisible = ref(false)
+const selectedCustomerForOrders = ref('')
+const selectedStatusForOrders = ref('')
+const customerOrders = ref<Order[]>([])
 
 // Computed for responsive modal width
 const imageModalWidth = computed(() => {
@@ -524,6 +641,101 @@ const closeImageModal = () => {
   imageModalSrc.value = ''
   imageModalTitle.value = ''
 }
+
+// Customer search methods
+const openCustomerSearchModal = async () => {
+  customerSearchVisible.value = true
+  customerSearchLoading.value = true
+  
+  try {
+    await loadAvailableCustomers()
+  } catch (error) {
+    ElMessage.error('Có lỗi xảy ra khi tải danh sách khách hàng')
+    console.error('Error loading customers:', error)
+  } finally {
+    customerSearchLoading.value = false
+  }
+}
+
+const loadAvailableCustomers = async () => {
+  const customerMap = new Map<string, { hangVe: number, dangChoGiao: number }>()
+  
+  // Fetch orders for each selected month and customer type
+  for (const month of billForm.value.months.length > 0 ? billForm.value.months : [new Date().getMonth() + 1]) {
+    await ordersStore.fetchOrders(
+      { month, year: billForm.value.year },
+      billForm.value.customerType,
+    )
+    
+    // Process orders to count by customer and status
+    ordersStore.orders.forEach(order => {
+      if (!order.customerName) return
+      
+      const customerName = order.customerName.trim()
+      if (!customerMap.has(customerName)) {
+        customerMap.set(customerName, { hangVe: 0, dangChoGiao: 0 })
+      }
+      
+      const customer = customerMap.get(customerName)!
+      if (order.status === ORDER_STATUSES.SALES.HANG_VE) {
+        customer.hangVe++
+      } else if (order.status === ORDER_STATUSES.SALES.DANG_CHO_GIAO) {
+        customer.dangChoGiao++
+      }
+    })
+  }
+  
+  // Filter customers who have at least one order with valid status
+  availableCustomers.value = Array.from(customerMap.entries())
+    .filter(([, counts]) => counts.hangVe > 0 || counts.dangChoGiao > 0)
+    .map(([name, counts]) => ({
+      name,
+      hangVeCount: counts.hangVe,
+      dangChoGiaoCount: counts.dangChoGiao
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+const selectCustomer = (customerName: string) => {
+  billForm.value.customerName = customerName
+  customerSearchVisible.value = false
+}
+
+const closeCustomerSearchModal = () => {
+  customerSearchVisible.value = false
+  availableCustomers.value = []
+}
+
+const showCustomerOrders = async (customerName: string, status: string) => {
+  selectedCustomerForOrders.value = customerName
+  selectedStatusForOrders.value = status
+  customerOrdersVisible.value = true
+  
+  // Collect orders for this customer with the specified status
+  const orders: Order[] = []
+  
+  for (const month of billForm.value.months.length > 0 ? billForm.value.months : [new Date().getMonth() + 1]) {
+    await ordersStore.fetchOrders(
+      { month, year: billForm.value.year },
+      billForm.value.customerType,
+    )
+    
+    const customerOrders = ordersStore.orders.filter(order => 
+      order.customerName?.trim() === customerName && order.status === status
+    )
+    
+    orders.push(...customerOrders)
+  }
+  
+  customerOrders.value = orders
+}
+
+const closeCustomerOrdersModal = () => {
+  customerOrdersVisible.value = false
+  selectedCustomerForOrders.value = ''
+  selectedStatusForOrders.value = ''
+  customerOrders.value = []
+}
 </script>
 
 <style scoped>
@@ -613,6 +825,178 @@ const closeImageModal = () => {
 .card-header {
   font-weight: 600;
   font-size: 1.2em;
+}
+
+/* Customer name container */
+.customer-name-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.customer-name-input {
+  flex: 1;
+}
+
+.search-button {
+  padding: 8px;
+  min-width: 40px;
+  height: 40px;
+}
+
+/* Customer search modal */
+.customer-search-content {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px;
+  color: #606266;
+}
+
+.customers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.customer-item {
+  padding: 16px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #fafafa;
+}
+
+.customer-item:hover {
+  border-color: #409eff;
+  background: #ecf5ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
+}
+
+.customer-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.customer-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.customer-stats {
+  display: flex;
+  gap: 8px;
+}
+
+.clickable-tag {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.clickable-tag:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Customer orders modal */
+.customer-orders-content {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.orders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.order-item {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: all 0.3s ease;
+}
+
+.order-item:hover {
+  border-color: #409eff;
+  background: #ecf5ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
+}
+
+.order-image {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+}
+
+.product-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.product-img:hover {
+  transform: scale(1.1);
+}
+
+.no-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fa;
+  border: 1px dashed #d3d4d6;
+  border-radius: 6px;
+  color: #909399;
+  font-size: 12px;
+}
+
+.order-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.product-code {
+  font-weight: 600;
+  color: #409eff;
+  font-size: 14px;
+}
+
+.product-name {
+  font-weight: 500;
+  color: #303133;
+  font-size: 14px;
+}
+
+.order-info {
+  color: #606266;
+  font-size: 12px;
+}
+
+.order-price {
+  font-weight: 600;
+  color: #e6a23c;
+  font-size: 14px;
 }
 
 /* Button container for all screens */
@@ -1097,6 +1481,36 @@ const closeImageModal = () => {
 
   .stt-number {
     font-size: 0.9em;
+  }
+
+  /* Customer search responsive */
+  .customer-item {
+    padding: 12px;
+  }
+
+  .customer-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .customer-stats {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .orders-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .order-item {
+    padding: 12px;
+  }
+
+  .order-image {
+    width: 60px;
+    height: 60px;
   }
 }
 
