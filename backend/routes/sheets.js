@@ -121,6 +121,20 @@ router.post('/', async (req, res) => {
     console.log('Values length:', values.length)
     console.log('ProductCode value:', productCode)
 
+    // Add customer to KHÁCH HÀNG sheet if not exists
+    try {
+      if (customerName && customerName.trim()) {
+        const customerExists = await checkCustomerExists(customerName.trim())
+        if (!customerExists) {
+          await addCustomerToSheet(customerName.trim(), contactInfo, linkFb)
+          console.log(`Added new customer: ${customerName}`)
+        }
+      }
+    } catch (error) {
+      console.error('Error managing customer data:', error)
+      // Continue with order creation even if customer addition fails
+    }
+
     const response = await appendSheet(range, values)
     res.json({ message: 'Order added successfully', data: response })
   } catch (error) {
@@ -244,7 +258,7 @@ router.put('/:rowIndex', async (req, res) => {
     }
 
     // Extract month/year from the order's month field (format: "10/2025")
-    let sheetDate = dateObj;
+    let sheetDate = dateObj
     if (month) {
       const [monthStr, yearStr] = month.split('/')
       const selectedDate = {
@@ -253,19 +267,29 @@ router.put('/:rowIndex', async (req, res) => {
       }
       sheetDate = new Date(selectedDate.year, selectedDate.month - 1, 1)
     }
-    
 
     // Tạo sheet name theo format tháng/năm
-    const sheetName = getMonthlySheetName(
-      SHEET_TYPES[sheetType],
-      sheetDate,
-    )
+    const sheetName = getMonthlySheetName(SHEET_TYPES[sheetType], sheetDate)
 
     // Row trong sheet (rowIndex + 4 vì sheet bắt đầu từ row 4)
     const targetRow = parseInt(rowIndex) + 4
     const range = `${sheetName}!A${targetRow}:O${targetRow}` // Extend to column N
 
     console.log('Updating range:', range)
+
+    // Add customer to KHÁCH HÀNG sheet if not exists
+    try {
+      if (customerName && customerName.trim()) {
+        const customerExists = await checkCustomerExists(customerName.trim())
+        if (!customerExists) {
+          await addCustomerToSheet(customerName.trim(), contactInfo, linkFb)
+          console.log(`Added new customer during update: ${customerName}`)
+        }
+      }
+    } catch (error) {
+      console.error('Error managing customer data during update:', error)
+      // Continue with order update even if customer addition fails
+    }
 
     // Prepare values array matching the sheet structure
     const values = [
@@ -440,6 +464,26 @@ router.post('/products', async (req, res) => {
     console.error('Lỗi khi thêm sản phẩm:', error)
     res.status(500).json({
       error: 'Failed to add product to sheet',
+    })
+  }
+})
+
+// Route để lấy danh sách customers
+router.get('/customers', async (req, res) => {
+  try {
+    const customers = await getCustomersFromSheet()
+
+    res.json({
+      success: true,
+      data: customers,
+      total: customers.length,
+    })
+  } catch (error) {
+    console.error('Error getting customers:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get customers from sheet',
+      message: error.message,
     })
   }
 })
@@ -683,6 +727,7 @@ const SHEET_TYPES = {
   INVENTORY: 'NHẬP HÀNG',
   CTV_ORDERS: 'CTV',
   PRODUCTS: 'SP',
+  CUSTOMERS: 'KHÁCH HÀNG',
 }
 
 // Create ORDCHINA record
@@ -801,6 +846,150 @@ async function createSheetIfNotExists(sheetName) {
   } catch (error) {
     console.error('Error creating sheet:', error)
     throw error
+  }
+}
+
+// Customer management functions
+async function checkCustomerExists(customerName) {
+  try {
+    const sheetName = SHEET_TYPES.CUSTOMERS
+
+    // Get existing customers data
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A:C`,
+    })
+
+    const rows = response.data.values || []
+
+    // Skip header row and check if customer exists
+    return rows
+      .slice(1)
+      .some((row) => row[0] && row[0].toLowerCase().trim() === customerName.toLowerCase().trim())
+  } catch (error) {
+    console.error('Error checking customer existence:', error)
+    // If sheet doesn't exist, customer doesn't exist
+    return false
+  }
+}
+
+async function addCustomerToSheet(customerName, contactInfo, linkFb) {
+  try {
+    const sheetName = SHEET_TYPES.CUSTOMERS
+
+    // Create sheet if it doesn't exist
+    await createCustomerSheetIfNotExists()
+
+    // Get existing data to find next row
+    const existingData = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A:C`,
+    })
+
+    const rows = existingData.data.values || []
+    const nextRow = rows.length + 1
+
+    // Prepare customer data
+    const customerData = [
+      customerName || '', // Column A: Tên khách hàng
+      contactInfo || '', // Column B: Địa chỉ/SDT
+      linkFb || '', // Column C: Link FB
+    ]
+
+    // Insert customer data
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetName}!A${nextRow}:C${nextRow}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [customerData],
+      },
+    })
+
+    console.log(`Added new customer to sheet: ${customerName}`)
+    return true
+  } catch (error) {
+    console.error('Error adding customer to sheet:', error)
+    throw error
+  }
+}
+
+async function createCustomerSheetIfNotExists() {
+  try {
+    const sheetName = SHEET_TYPES.CUSTOMERS
+
+    // Check if sheet exists
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId,
+    })
+
+    const sheetExists = spreadsheet.data.sheets.some(
+      (sheet) => sheet.properties.title === sheetName,
+    )
+
+    if (!sheetExists) {
+      // Create new sheet
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        resource: {
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: sheetName,
+                },
+              },
+            },
+          ],
+        },
+      })
+
+      // Add headers
+      const headers = [
+        'Tên khách hàng', // Column A
+        'Địa chỉ/SDT', // Column B
+        'Link FB', // Column C
+      ]
+
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${sheetName}!A1:C1`,
+        valueInputOption: 'USER_ENTERED',
+        resource: {
+          values: [headers],
+        },
+      })
+    }
+  } catch (error) {
+    console.error('Error creating customer sheet:', error)
+    throw error
+  }
+}
+
+async function getCustomersFromSheet() {
+  try {
+    const sheetName = SHEET_TYPES.CUSTOMERS
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A:C`,
+    })
+
+    const rows = response.data.values || []
+
+    // Skip header row and map to customer objects
+    return rows
+      .slice(1)
+      .map((row, index) => ({
+        rowIndex: index,
+        customerName: row[0] || '',
+        contactInfo: row[1] || '',
+        linkFb: row[2] || '',
+      }))
+      .filter((customer) => customer.customerName) // Filter out empty rows
+  } catch (error) {
+    console.error('Error getting customers from sheet:', error)
+    return []
   }
 }
 

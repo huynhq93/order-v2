@@ -288,30 +288,40 @@
             <el-empty description="Không có khách hàng nào có thể tạo hóa đơn" />
           </div>
           
-          <div v-else class="customers-list">
+          <div v-else class="customers-grid">
             <div 
               v-for="customer in availableCustomers" 
               :key="customer.name"
-              class="customer-item"
+              class="customer-card"
               @click="selectCustomer(customer.name)"
             >
-              <div class="customer-info">
-                <h4 class="customer-name">{{ customer.name }}</h4>
-                <div class="customer-stats">
-                  <el-tag 
-                    type="success" 
+              <div class="customer-avatar">
+                {{ customer.name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2) }}
+              </div>
+              <div class="customer-details">
+                <h4 class="customer-card-name">{{ customer.name }}</h4>
+                <el-tag 
+                  :type="customer.name.toLowerCase().includes('ctv') ? 'warning' : 'primary'"
+                  size="small"
+                  class="customer-type-tag"
+                >
+                  {{ customer.name.toLowerCase().includes('ctv') ? 'CTV' : 'Khách hàng' }}
+                </el-tag>
+                <div class="customer-card-stats">
+                  <div 
+                    class="stat-item success"
                     @click.stop="showCustomerOrders(customer.name, ORDER_STATUSES.SALES.HANG_VE)"
-                    class="clickable-tag"
                   >
-                    Hàng về: {{ customer.hangVeCount }}
-                  </el-tag>
-                  <el-tag 
-                    type="warning"
+                    <span class="stat-number">{{ customer.hangVeCount }}</span>
+                    <span class="stat-text">Hàng về</span>
+                  </div>
+                  <div 
+                    class="stat-item warning"
                     @click.stop="showCustomerOrders(customer.name, ORDER_STATUSES.SALES.DANG_CHO_GIAO)"
-                    class="clickable-tag"
                   >
-                    Đang chờ giao: {{ customer.dangChoGiaoCount }}
-                  </el-tag>
+                    <span class="stat-number">{{ customer.dangChoGiaoCount }}</span>
+                    <span class="stat-text">Đang chờ giao</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -859,54 +869,155 @@ const closeCustomerOrdersModal = () => {
   color: #606266;
 }
 
-.customers-list {
+.customers-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding: 8px;
+}
+
+.customer-card {
+  padding: 20px;
+  border: 1px solid #e4e7ed;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: white;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.customer-card:hover {
+  border-color: #409eff;
+  background: #ecf5ff;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.15);
+}
+
+.customer-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #409eff, #5dade2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 18px;
+  margin: 0 auto 16px auto;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+}
+
+.customer-details {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 12px;
 }
 
-.customer-item {
-  padding: 16px;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background: #fafafa;
-}
-
-.customer-item:hover {
-  border-color: #409eff;
-  background: #ecf5ff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
-}
-
-.customer-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.customer-name {
+.customer-card-name {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
   color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
-.customer-stats {
+.customer-type-tag {
+  margin-bottom: 8px;
+}
+
+.customer-card-stats {
   display: flex;
-  gap: 8px;
+  gap: 12px;
+  width: 100%;
+  justify-content: center;
 }
 
-.clickable-tag {
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
+  min-width: 60px;
 }
 
-.clickable-tag:hover {
+.stat-item.success {
+  background: #f0f9ff;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.stat-item.success:hover {
+  background: #dcfdf7;
   transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.stat-item.warning {
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fed7aa;
+}
+
+.stat-item.warning:hover {
+  background: #fef3c7;
+  transform: scale(1.05);
+}
+
+.stat-number {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.stat-text {
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Responsive for tablets and smaller screens */
+@media (max-width: 1200px) {
+  .customers-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .customers-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .customer-card {
+    padding: 16px;
+  }
+  
+  .customer-avatar {
+    width: 50px;
+    height: 50px;
+    font-size: 16px;
+  }
+  
+  .customer-card-stats {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .stat-item {
+    flex-direction: row;
+    justify-content: space-between;
+    min-width: auto;
+    width: 100%;
+  }
 }
 
 /* Customer orders modal */

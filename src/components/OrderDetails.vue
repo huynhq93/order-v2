@@ -88,11 +88,27 @@
           <div class="field-row">
             <div class="field-item">
               <label class="field-label">Tên khách hàng</label>
-              <el-input
+              <el-select
                 v-if="isEditing"
                 v-model="editedOrder.customerName"
-                placeholder="Nhập tên khách hàng"
-              />
+                placeholder="Chọn hoặc nhập tên khách hàng"
+                filterable
+                remote
+                allow-create
+                default-first-option
+                clearable
+                :remote-method="handleCustomerSearch"
+                :loading="isLoadingCustomers"
+                @change="onCustomerSelect"
+                class="w-full"
+              >
+                <el-option
+                  v-for="customer in customersList"
+                  :key="customer.customerName"
+                  :label="customer.customerName"
+                  :value="customer.customerName"
+                />
+              </el-select>
               <div v-else class="field-value">{{ order.customerName || '-' }}</div>
             </div>
           </div>
@@ -286,12 +302,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { formatCurrency } from '@/utils/format'
 import type { Order } from '@/types/order'
+import type { Customer } from '@/types/customer'
 import { ElMessage } from 'element-plus'
 import { uploadImage } from '@/api/images'
 import { productsAPI } from '@/api/products'
+import { getAllCustomers, clearCustomersCache } from '@/api/customers'
 import { 
   EditPen, 
   Picture,
@@ -311,6 +329,10 @@ const emit = defineEmits<{
 const isEditing = ref(false)
 const saving = ref(false)
 const isSearchingProduct = ref(false)
+
+// Customer dropdown state
+const customersList = ref<Customer[]>([])
+const isLoadingCustomers = ref(false)
 
 // Helper function to convert date format for date picker
 const formatDateForPicker = (dateStr: string) => {
@@ -377,6 +399,61 @@ const onProductCodeChange = async () => {
   }
 }
 
+// Customer dropdown functionality
+const loadAllCustomers = async () => {
+  try {
+    isLoadingCustomers.value = true
+    const result = await getAllCustomers()
+    
+    if (result.success && result.data) {
+      customersList.value = result.data
+    }
+  } catch (error) {
+    console.error('Error loading customers:', error)
+    ElMessage.error('Lỗi khi tải danh sách khách hàng')
+  } finally {
+    isLoadingCustomers.value = false
+  }
+}
+
+const handleCustomerSearch = (query: string) => {
+  if (!query) {
+    // If no query, show all customers
+    loadAllCustomers()
+    return
+  }
+  
+  // Filter customers locally
+  const filtered = customersList.value.filter((customer: Customer) =>
+    customer.customerName.toLowerCase().includes(query.toLowerCase())
+  )
+  customersList.value = filtered
+}
+
+const onCustomerSelect = (customerName: string) => {
+  if (!customerName) return
+  
+  // Find the selected customer
+  const selectedCustomer = customersList.value.find(
+    (customer: Customer) => customer.customerName === customerName
+  )
+  
+  if (selectedCustomer) {
+    // Existing customer - auto-fill contact info and link FB
+    if (selectedCustomer.contactInfo && !editedOrder.value.contactInfo) {
+      editedOrder.value.contactInfo = selectedCustomer.contactInfo
+    }
+    if (selectedCustomer.linkFb && !editedOrder.value.linkFb) {
+      editedOrder.value.linkFb = selectedCustomer.linkFb
+    }
+    
+    if (selectedCustomer.contactInfo || selectedCustomer.linkFb) {
+      ElMessage.success('Đã tự động điền thông tin khách hàng')
+    }
+  }
+  // If customer not found (new customer), do nothing - allow manual entry
+}
+
 // Reset editing state - to be called when modal is closed
 const resetEditingState = () => {
   isEditing.value = false
@@ -391,6 +468,11 @@ const resetEditingState = () => {
 // Expose the reset function to parent component
 defineExpose({
   resetEditingState
+})
+
+// Load customers on component mount
+onMounted(() => {
+  loadAllCustomers()
 })
 
 const getStatusType = (status: string) => {
@@ -539,6 +621,10 @@ const saveChanges = async () => {
     }
     
     emit('update', editedOrder.value)
+    
+    // Clear customers cache since customer info might have been updated
+    clearCustomersCache()
+    
     isEditing.value = false
     imagePreview.value = ''
     imageFile.value = null

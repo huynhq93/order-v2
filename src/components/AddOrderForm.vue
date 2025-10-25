@@ -65,7 +65,26 @@
             <div class="field-row">
               <div class="field-item">
                 <el-form-item label="Tên khách hàng" prop="customerName">
-                  <el-input v-model="form.customerName" placeholder="Nhập tên khách hàng" />
+                  <el-select
+                    v-model="form.customerName"
+                    placeholder="Chọn hoặc nhập tên khách hàng"
+                    filterable
+                    remote
+                    allow-create
+                    default-first-option
+                    :remote-method="handleCustomerSearch"
+                    :loading="isLoadingCustomers"
+                    clearable
+                    class="w-full"
+                    @change="onCustomerSelect"
+                  >
+                    <el-option
+                      v-for="customer in customersList"
+                      :key="customer.value"
+                      :label="customer.label"
+                      :value="customer.value"
+                    />
+                  </el-select>
                 </el-form-item>
               </div>
             </div>
@@ -214,13 +233,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { Order } from '@/types/order'
 import { ElMessage } from 'element-plus'
 import { useOrdersStore } from '@/stores/orders'
 import { uploadImage } from '@/api/images'
 import { productsAPI } from '@/api/products'
+import { clearCustomersCache, getAllCustomers, type Customer } from '@/api/customers'
 import { 
   EditPen, 
   Picture,
@@ -269,6 +289,10 @@ const form = ref({
 const imagePreview = ref('')
 const file = ref<File | undefined>(undefined)
 const isSearchingProduct = ref(false)
+
+// Customer dropdown state
+const customersList = ref<Array<{ value: string; label: string; data: Customer }>>([])
+const isLoadingCustomers = ref(false)
 
 const rules: FormRules = {
   date: [{ required: true, message: 'Vui lòng chọn ngày', trigger: 'change' }],
@@ -379,6 +403,75 @@ const onProductCodeChange = async () => {
   }
 }
 
+// Customer dropdown functionality
+
+// Load all customers on component mount
+const loadAllCustomers = async () => {
+  try {
+    isLoadingCustomers.value = true
+    const result = await getAllCustomers()
+    
+    if (result.success) {
+      customersList.value = result.data.map(customer => ({
+        value: customer.customerName,
+        label: customer.customerName,
+        data: customer
+      }))
+    }
+  } catch (error) {
+    console.error('Error loading customers:', error)
+  } finally {
+    isLoadingCustomers.value = false
+  }
+}
+
+// Handle customer search/filter
+const handleCustomerSearch = async (query: string) => {
+  if (!query) {
+    await loadAllCustomers()
+    return
+  }
+  
+  try {
+    isLoadingCustomers.value = true
+    const result = await getAllCustomers()
+    
+    if (result.success) {
+      // Filter customers based on search query
+      const filteredCustomers = result.data.filter(customer =>
+        customer.customerName.toLowerCase().includes(query.toLowerCase())
+      )
+      
+      customersList.value = filteredCustomers.map(customer => ({
+        value: customer.customerName,
+        label: customer.customerName,
+        data: customer
+      }))
+    }
+  } catch (error) {
+    console.error('Error searching customers:', error)
+  } finally {
+    isLoadingCustomers.value = false
+  }
+}
+
+// Handle customer selection
+const onCustomerSelect = (selectedCustomerName: string) => {
+  if (!selectedCustomerName) return
+  
+  const selectedCustomer = customersList.value.find(c => c.value === selectedCustomerName)
+  if (selectedCustomer && selectedCustomer.data) {
+    // Existing customer - auto-fill contact info and link FB
+    form.value.contactInfo = selectedCustomer.data.contactInfo || ''
+    form.value.linkFb = selectedCustomer.data.linkFb || ''
+    // ElMessage.success('Đã tự động điền thông tin khách hàng')
+  } else {
+    // New customer - clear contact info to allow manual entry
+    form.value.contactInfo = ''
+    form.value.linkFb = ''
+  }
+}
+
 const handleSubmit = async () => {
   if (!formRef.value) return
   
@@ -426,6 +519,10 @@ const handleSubmit = async () => {
     }
     
     await orderStore.addOrder(orderData, props.customerType)
+    
+    // Clear customers cache since a new customer might have been added
+    clearCustomersCache()
+    
     ElMessage.success('Thêm đơn hàng thành công!')
     emit('order-added')
     resetForm()
@@ -490,6 +587,11 @@ const populateForm = (orderData: Partial<Order>) => {
 defineExpose({
   populateForm,
   resetForm
+})
+
+// Load customers on component mount
+onMounted(() => {
+  loadAllCustomers()
 })
 </script>
 
