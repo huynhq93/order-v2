@@ -29,6 +29,11 @@ const router = createRouter({
       name: 'order-china',
       component: () => import('@/views/OrderChinaView.vue'),
     },
+    {
+      path: '/revenue',
+      name: 'revenue',
+      component: () => import('@/views/RevenueView.vue'),
+    },
   ],
 })
 

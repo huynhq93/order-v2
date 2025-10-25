@@ -4,7 +4,7 @@ require('dotenv').config()
 
 const sheetRoutes = require('./routes/sheets')
 const imageRoutes = require('./routes/images')
-
+const revenueRoutes = require('./routes/revenue')
 
 const app = express()
 app.use(cors())
@@ -15,11 +15,12 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
 app.use('/api/sheets', sheetRoutes)
 app.use('/api/images', imageRoutes)
+app.use('/api/revenue', revenueRoutes)
 
 // Also mount routes without /api prefix for direct access
 app.use('/sheets', sheetRoutes)
 app.use('/images', imageRoutes)
-
+app.use('/revenue', revenueRoutes)
 
 app.get('/api/test', (req, res) => {
   res.json({
@@ -40,6 +41,7 @@ app.get('/', (req, res) => {
     endpoints: {
       sheets: '/sheets?type=ORDERS&month=5&year=2025',
       images: '/images/upload',
+      revenue: '/revenue (POST)',
       test: '/test',
     },
   })

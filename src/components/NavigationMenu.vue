@@ -17,13 +17,17 @@
         <el-icon><Document /></el-icon>
         <span>Tạo hóa đơn</span>
       </el-menu-item>
+      <el-menu-item index="revenue">
+        <el-icon><TrendCharts /></el-icon>
+        <span>Thống kê</span>
+      </el-menu-item>
     </el-menu>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { Management, Document, DocumentAdd, Van } from '@element-plus/icons-vue'
+import { Management, Document, DocumentAdd, Van, TrendCharts } from '@element-plus/icons-vue'
 
 interface Props {
   activeMenuItem: string
@@ -39,6 +43,8 @@ const handleMenuSelect = (index: string) => {
     router.push('/order-codes')
   } else if (index === 'order-china') {
     router.push('/order-china')
+  } else if (index === 'revenue') {
+    router.push('/revenue')
   } else if (index === 'orders') {
     router.push('/')
   }
