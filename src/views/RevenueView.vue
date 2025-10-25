@@ -108,6 +108,22 @@
       </el-row>
     </div>
 
+    <!-- Profit Chart for Yearly View -->
+    <div class="chart-section" v-if="revenueData && reportType === 'year'">
+      <el-card>
+        <template #header>
+          <div class="chart-header">
+            <span class="chart-title">Biểu đồ lợi nhuận năm {{ selectedYear }}</span>
+          </div>
+        </template>
+        <div class="chart-container">
+          <ProfitChart 
+            :chart-data="chartData"
+          />
+        </div>
+      </el-card>
+    </div>
+
     <!-- Detailed Revenue Table -->
     <div class="revenue-table-section" v-if="revenueData">
       <el-card>
@@ -193,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Refresh,
@@ -205,6 +221,7 @@ import {
 } from '@element-plus/icons-vue'
 import NavigationMenu from '@/components/NavigationMenu.vue'
 import MonthSelector from '@/components/MonthSelector.vue'
+import ProfitChart from '@/components/ProfitChart.vue'
 import { formatCurrency } from '@/utils/format'
 import { revenueAPI } from '@/api/revenue'
 
@@ -235,8 +252,85 @@ const selectedDate = ref({
 const selectedYear = ref(new Date().getFullYear().toString())
 const revenueData = ref<RevenueData | null>(null)
 
+// Chart data for yearly view
+const chartData = ref({
+  labels: [] as string[],
+  datasets: [
+    {
+      label: 'Lợi nhuận',
+      data: [] as number[],
+      borderColor: '#3b82f6',
+      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+      tension: 0.4,
+      fill: true,
+    },
+    {
+      label: 'Doanh thu',
+      data: [] as number[],
+      borderColor: '#10b981',
+      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+      tension: 0.4,
+      fill: false,
+    },
+    {
+      label: 'Chi phí',
+      data: [] as number[],
+      borderColor: '#f59e0b',
+      backgroundColor: 'rgba(245, 158, 11, 0.1)',
+      tension: 0.4,
+      fill: false,
+    }
+  ]
+})
+
+// Watch for changes and auto-reload data
+watch([reportType, selectedDate, selectedYear], () => {
+  loadRevenueData()
+}, { deep: true })
+
 const handleReportTypeChange = () => {
   revenueData.value = null
+  // Auto-load data when switching tabs
+  loadRevenueData()
+}
+
+const updateChartData = () => {
+  if (reportType.value === 'year' && revenueData.value?.details) {
+    const labels = revenueData.value.details.map(item => `Tháng ${item.period.split('/')[0]}`)
+    const profitData = revenueData.value.details.map(item => item.profit)
+    const incomeData = revenueData.value.details.map(item => item.totalIncome)
+    const expenseData = revenueData.value.details.map(item => item.expense)
+    
+    chartData.value = {
+      labels,
+      datasets: [
+        {
+          label: 'Lợi nhuận',
+          data: profitData,
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          tension: 0.4,
+          fill: true,
+        },
+        {
+          label: 'Doanh thu',
+          data: incomeData,
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          tension: 0.4,
+          fill: false,
+        },
+        {
+          label: 'Chi phí',
+          data: expenseData,
+          borderColor: '#f59e0b',
+          backgroundColor: 'rgba(245, 158, 11, 0.1)',
+          tension: 0.4,
+          fill: false,
+        }
+      ]
+    }
+  }
 }
 
 const loadRevenueData = async () => {
@@ -252,6 +346,10 @@ const loadRevenueData = async () => {
 
     if (response.success && response.data) {
       revenueData.value = response.data
+      // Update chart data for yearly view
+      if (reportType.value === 'year') {
+        updateChartData()
+      }
       ElMessage.success('Tải dữ liệu thành công!')
     } else {
       ElMessage.error(response.error || 'Lỗi khi tải dữ liệu')
@@ -351,6 +449,27 @@ onMounted(() => {
 
 .summary-cards {
   margin-bottom: 24px;
+}
+
+.chart-section {
+  margin-bottom: 24px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chart-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.chart-container {
+  height: 400px;
+  padding: 20px 0;
 }
 
 .summary-card {
