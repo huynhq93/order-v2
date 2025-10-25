@@ -1,5 +1,9 @@
 import axios from 'axios'
 
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5176',
+})
+
 interface RevenueQueryParams {
   type: 'month' | 'year'
   year: number
@@ -29,21 +33,13 @@ export const revenueAPI = {
     params: RevenueQueryParams,
   ): Promise<{ success: boolean; data?: RevenueResponse; error?: string }> {
     try {
-      const response = await api.post(`/sheets?type=${sheetType}`, order)
-      const response = await fetch('/api/revenue', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(params),
-      })
+      const response = await api.post(`/api/sheets/revenue`, params)
 
-      if (!response.ok) {
+      if (response.status === 200) {
+        return { success: true, data: response.data }
+      } else {
         throw new Error('Network response was not ok')
       }
-
-      const data = await response.json()
-      return { success: true, data }
     } catch (error) {
       console.error('Error fetching revenue data:', error)
       return {
