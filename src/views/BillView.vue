@@ -1,26 +1,7 @@
 <template>
   <div class="container mx-auto px-4 py-8">
     <!-- Navigation Menu -->
-    <div class="navigation-menu">
-      <el-menu mode="horizontal" :default-active="activeMenuItem" @select="handleMenuSelect">
-        <el-menu-item index="orders">
-          <el-icon><Management /></el-icon>
-          <span>Quản lý đơn hàng</span>
-        </el-menu-item>
-        <el-menu-item index="order-codes">
-          <el-icon><DocumentAdd /></el-icon>
-          <span>Nhập mã vận đơn</span>
-        </el-menu-item>
-        <el-menu-item index="order-china">
-          <el-icon><Van /></el-icon>
-          <span>Quản lý nhập hàng</span>
-        </el-menu-item>
-        <el-menu-item index="bill">
-          <el-icon><Document /></el-icon>
-          <span>Tạo hóa đơn</span>
-        </el-menu-item>
-      </el-menu>
-    </div>
+    <NavigationMenu active-menu-item="bill" />
 
     <!-- Hero Header -->
     <div class="hero-header">
@@ -376,30 +357,14 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Management, Document, DocumentAdd, Van, Delete, Search, Loading } from '@element-plus/icons-vue'
+import { Delete, Search, Loading } from '@element-plus/icons-vue'
+import NavigationMenu from '@/components/NavigationMenu.vue'
 import { useOrdersStore } from '@/stores/orders'
 import type { Order } from '@/types/order'
 import { ORDER_STATUSES, getOrderStatusType } from '@/constants/orderStatus'
 
-const router = useRouter()
 const ordersStore = useOrdersStore()
-
-const activeMenuItem = ref('bill')
-
-const handleMenuSelect = (index: string) => {
-  activeMenuItem.value = index
-  if (index === 'orders') {
-    router.push('/')
-  } else if (index === 'order-codes') {
-    router.push('/order-codes')
-  } else if (index === 'order-china') {
-    router.push('/order-china')
-  } else if (index === 'bill') {
-    router.push('/bill')
-  }
-}
 
 // Form data
 const billForm = ref({
@@ -749,36 +714,7 @@ const closeCustomerOrdersModal = () => {
 </script>
 
 <style scoped>
-.navigation-menu {
-  margin-bottom: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
 
-.navigation-menu :deep(.el-menu) {
-  border: none;
-}
-
-.navigation-menu :deep(.el-menu-item) {
-  padding: 0 20px;
-  height: 60px;
-  line-height: 60px;
-}
-
-.navigation-menu :deep(.el-menu-item:hover) {
-  background-color: #ecf5ff;
-}
-
-.navigation-menu :deep(.el-menu-item.is-active) {
-  background-color: #409eff;
-  color: white;
-}
-
-.navigation-menu :deep(.el-menu-item.is-active .el-icon) {
-  color: white;
-}
 
 .hero-header {
   text-align: center;

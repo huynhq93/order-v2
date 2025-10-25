@@ -1,26 +1,7 @@
 <template>
   <div class="container mx-auto px-4 py-8">
     <!-- Navigation Menu -->
-    <div class="navigation-menu">
-      <el-menu mode="horizontal" :default-active="activeMenuItem" @select="handleMenuSelect">
-        <el-menu-item index="orders">
-          <el-icon><Management /></el-icon>
-          <span>Quản lý đơn hàng</span>
-        </el-menu-item>
-        <el-menu-item index="order-codes">
-          <el-icon><DocumentAdd /></el-icon>
-          <span>Nhập mã vận đơn</span>
-        </el-menu-item>
-        <el-menu-item index="order-china">
-          <el-icon><Van /></el-icon>
-          <span>Quản lý nhập hàng</span>
-        </el-menu-item>
-        <el-menu-item index="bill">
-          <el-icon><Document /></el-icon>
-          <span>Tạo hóa đơn</span>
-        </el-menu-item>
-      </el-menu>
-    </div>
+    <NavigationMenu active-menu-item="orders" />
     
     <!-- Hero Header -->
     <div class="hero-header">
@@ -41,32 +22,14 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { Management, Document, DocumentAdd, Van } from '@element-plus/icons-vue'
+import NavigationMenu from '@/components/NavigationMenu.vue'
 import OrdersTable from '@/components/OrdersTable.vue'
 import MonthSelector from '@/components/MonthSelector.vue'
-
-const router = useRouter()
 
 const selectedDate = ref({
   month: new Date().getMonth() + 1,
   year: new Date().getFullYear()
 })
-
-const activeMenuItem = ref('orders')
-
-const handleMenuSelect = (index: string) => {
-  activeMenuItem.value = index
-  if (index === 'bill') {
-    router.push('/bill')
-  } else if (index === 'order-codes') {
-    router.push('/order-codes')
-  } else if (index === 'order-china') {
-    router.push('/order-china')
-  } else if (index === 'orders') {
-    router.push('/')
-  }
-}
 </script>
 
 <style scoped>
@@ -93,7 +56,7 @@ const handleMenuSelect = (index: string) => {
 }
 
 .navigation-menu :deep(.el-menu-item.is-active) {
-  background-color: #409eff;
+  background-color: #356393;
   color: white;
 }
 

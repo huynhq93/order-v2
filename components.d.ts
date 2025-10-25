@@ -48,6 +48,7 @@ declare module 'vue' {
     IconTooling: typeof import('./src/components/icons/IconTooling.vue')['default']
     ImagePreview: typeof import('./src/components/ImagePreview.vue')['default']
     MonthSelector: typeof import('./src/components/MonthSelector.vue')['default']
+    NavigationMenu: typeof import('./src/components/NavigationMenu.vue')['default']
     OrderChinaManager: typeof import('./src/components/OrderChinaManager.vue')['default']
     OrderCodeManager: typeof import('./src/components/OrderCodeManager.vue')['default']
     OrderDetails: typeof import('./src/components/OrderDetails.vue')['default']
