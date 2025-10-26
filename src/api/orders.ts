@@ -1,8 +1,16 @@
 import axios from 'axios'
+import { getAuthHeaders } from '@/api/auth'
 import type { Order } from '@/types/order'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5176',
+})
+
+// Add auth headers to all requests
+api.interceptors.request.use((config) => {
+  const authHeaders = getAuthHeaders()
+  config.headers = { ...config.headers, ...authHeaders }
+  return config
 })
 
 export const getOrders = async (

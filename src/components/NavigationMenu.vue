@@ -21,13 +21,38 @@
         <el-icon><TrendCharts /></el-icon>
         <span>Thống kê</span>
       </el-menu-item>
+      
+      <!-- User menu on the right -->
+      <div class="user-menu">
+        <el-dropdown @command="handleUserMenuSelect">
+          <span class="user-info">
+            <el-icon><User /></el-icon>
+            <span>{{ user?.username || 'User' }}</span>
+            <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="profile">
+                <el-icon><User /></el-icon>
+                Tài khoản ({{ user?.role }})
+              </el-dropdown-item>
+              <el-dropdown-item command="logout" divided>
+                <el-icon><SwitchButton /></el-icon>
+                Đăng xuất
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
     </el-menu>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { Management, Document, DocumentAdd, Van, TrendCharts } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { Management, Document, DocumentAdd, Van, TrendCharts, User, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores/auth'
 
 interface Props {
   activeMenuItem: string
@@ -35,6 +60,10 @@ interface Props {
 
 defineProps<Props>()
 const router = useRouter()
+const authStore = useAuthStore()
+
+// Get user from auth store
+const user = authStore.user
 
 const handleMenuSelect = (index: string) => {
   if (index === 'bill') {
@@ -47,6 +76,16 @@ const handleMenuSelect = (index: string) => {
     router.push('/revenue')
   } else if (index === 'orders') {
     router.push('/')
+  }
+}
+
+const handleUserMenuSelect = (command: string) => {
+  if (command === 'logout') {
+    authStore.logout()
+    ElMessage.success('Đăng xuất thành công')
+    router.push('/login')
+  } else if (command === 'profile') {
+    ElMessage.info('Chức năng quản lý tài khoản đang phát triển')
   }
 }
 </script>
@@ -64,6 +103,9 @@ const handleMenuSelect = (index: string) => {
 
 .navigation-menu :deep(.el-menu) {
   border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .navigation-menu :deep(.el-menu-item) {
@@ -109,6 +151,38 @@ const handleMenuSelect = (index: string) => {
 
 :deep(.el-menu-item .el-icon) {
   margin-right: 8px;
+}
+
+.user-menu {
+  margin-left: auto;
+  padding: 0 20px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #4b5563;
+  font-weight: 500;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.user-info:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.arrow-icon {
+  transition: transform 0.3s ease;
+}
+
+.user-info:hover .arrow-icon {
+  transform: rotate(180deg);
 }
 
 @media (max-width: 768px) {
