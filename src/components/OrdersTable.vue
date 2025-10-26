@@ -166,10 +166,9 @@
               @change="(value: string) => handleStatusChange(row.rowIndex, value)"
               :class="getStatusColor(row.status)"
             >
-              <el-option label="NHẬN ĐƠN" value="NHẬN ĐƠN" />
-              <el-option label="ĐANG CHỜ GIAO" value="ĐANG CHỜ GIAO" />
-              <el-option label="ĐANG GIAO" value="ĐANG GIAO" />
-              <el-option label="HUỶ" value="Hủy" />
+              <el-option label="THÀNH CÔNG" value="THÀNH CÔNG" />
+              <el-option label="HUỶ ĐƠN" value="HUỶ ĐƠN" />
+              <el-option label="HOÀN HÀNG" value="HOÀN HÀNG" />
             </el-select>
           </template>
         </el-table-column>
@@ -354,7 +353,7 @@ const pagerCount = computed(() => {
 // Use shallowRef for better performance on filter changes
 const filters = shallowRef({
   customerName: '',
-  statuses: ['ĐANG CHỜ GIAO', 'ĐANG GIAO'] as string[],
+  statuses: ['NHẬN ĐƠN', 'ĐÃ ĐẶT HÀNG', 'HÀNG VỀ', 'ĐANG CHỜ GIAO', 'ĐANG GIAO'] as string[],
 })
 
 // Pagination state

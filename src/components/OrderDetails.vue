@@ -492,6 +492,8 @@ const loadAllProducts = async () => {
     const result = await productsAPI.getAllProducts()
     
     if (result.success && result.data) {
+      // Backend already sorts products by newest product code first
+      // No need to sort again in frontend
       const formattedProducts = result.data.map(product => ({
         value: product.productCode,
         label: `${product.productCode} - ${product.productName}`,
@@ -541,6 +543,8 @@ const loadModalProducts = async () => {
     const result = await productsAPI.getAllProducts()
     
     if (result.success && result.data) {
+      // Backend already sorts products by newest product code first
+      // No need to sort again in frontend
       allProducts.value = result.data
       filteredModalProducts.value = result.data
       

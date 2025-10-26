@@ -496,6 +496,8 @@ const loadAllProducts = async () => {
     const result = await productsAPI.getAllProducts()
     
     if (result.success && result.data) {
+      // Backend already sorts products by newest product code first
+      // No need to sort again in frontend
       const formattedProducts = result.data.map(product => ({
         value: product.productCode,
         label: `${product.productCode} - ${product.productName}`,
@@ -545,6 +547,8 @@ const loadModalProducts = async () => {
     const result = await productsAPI.getAllProducts()
     
     if (result.success && result.data) {
+      // Backend already sorts products by newest product code first
+      // No need to sort again in frontend
       allProducts.value = result.data
       filteredModalProducts.value = result.data
       
@@ -720,7 +724,7 @@ const handleSubmit = async () => {
       ...form.value,
       productImage: imageUrl || form.value.productImage,
       // Chỉ gửi productCode nếu người dùng đã nhập (để backend biết đây là sản phẩm có sẵn)
-      productCode: form.value.productCode.trim() || undefined
+      productCode: form.value.productCode ? form.value.productCode.trim() : undefined
     }
     
     await orderStore.addOrder(orderData, props.customerType)
