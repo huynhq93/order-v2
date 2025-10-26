@@ -1,4 +1,8 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5176/api'
+import axios from 'axios'
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5176',
+})
 
 interface LoginCredentials {
   username: string
@@ -46,15 +50,8 @@ export function removeAuthToken(): void {
 // Login API
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(credentials),
-    })
-
-    const data = await response.json()
+    const response = await api.post('/api/auth/login', credentials)
+    const data = response.data
 
     if (data.success && data.data?.token) {
       setAuthToken(data.data.token)
@@ -82,15 +79,8 @@ export async function verifyToken(): Promise<VerifyResponse> {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/verify`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ token }),
-    })
-
-    const data = await response.json()
+    const response = await api.post('/api/auth/verify', { token })
+    const data = response.data
 
     if (!data.success) {
       removeAuthToken()
@@ -120,14 +110,8 @@ export async function initAccounts(): Promise<{
   data?: Array<{ username: string; role: string }>
 }> {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/init-accounts`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    return await response.json()
+    const response = await api.post('/api/auth/init-accounts')
+    return response.data
   } catch (error) {
     console.error('Init accounts error:', error)
     return {
@@ -138,7 +122,7 @@ export async function initAccounts(): Promise<{
 }
 
 // Add authorization header to requests
-export function getAuthHeaders(): HeadersInit {
+export function getAuthHeaders(): Record<string, string> {
   const token = getAuthToken()
   return {
     'Content-Type': 'application/json',
