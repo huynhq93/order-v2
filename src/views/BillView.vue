@@ -22,16 +22,38 @@
             <el-col :xs="24" :sm="12">
               <el-form-item label="Tên khách hàng" required>
                 <div class="customer-name-container">
-                  <el-input
+                  <el-select
                     v-model="billForm.customerName"
-                    placeholder="Nhập tên khách hàng"
+                    placeholder="Chọn hoặc nhập tên khách hàng"
                     clearable
+                    filterable
+                    allow-create
+                    default-first-option
                     class="customer-name-input"
-                  />
+                    :loading="customerSearchLoading"
+                    @focus="loadAvailableCustomersForDropdown"
+                  >
+                    <el-option
+                      v-for="customer in availableCustomers"
+                      :key="customer.name"
+                      :label="customer.name"
+                      :value="customer.name"
+                    >
+                      <div class="customer-option">
+                        <span class="customer-name">{{ customer.name }}</span>
+                        <div class="customer-stats-inline">
+                          <el-tag size="small" type="info">{{ customer.nhanDonCount }}</el-tag>
+                          <el-tag size="small" type="primary">{{ customer.daDatHangCount }}</el-tag>
+                          <el-tag size="small" type="success">{{ customer.hangVeCount }}</el-tag>
+                          <el-tag size="small" type="warning">{{ customer.dangChoGiaoCount }}</el-tag>
+                        </div>
+                      </div>
+                    </el-option>
+                  </el-select>
                   <el-button
                     :icon="Search"
                     @click="openCustomerSearchModal"
-                    title="Tìm kiếm khách hàng"
+                    title="Tìm kiếm khách hàng chi tiết"
                     class="search-button"
                   />
                 </div>
@@ -276,9 +298,6 @@
               class="customer-card"
               @click="selectCustomer(customer.name)"
             >
-              <div class="customer-avatar">
-                {{ customer.name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2) }}
-              </div>
               <div class="customer-details">
                 <h4 class="customer-card-name">{{ customer.name }}</h4>
                 <el-tag 
@@ -682,7 +701,7 @@ const loadAvailableCustomers = async () => {
   
   // Filter customers who have at least one order with valid status
   availableCustomers.value = Array.from(customerMap.entries())
-    .filter(([, counts]) => counts.nhanDon > 0 || counts.daDatHang > 0 || counts.hangVe > 0 || counts.dangChoGiao > 0)
+    .filter(([, counts]) => counts.hangVe > 0 || counts.dangChoGiao > 0)
     .map(([name, counts]) => ({
       name,
       nhanDonCount: counts.nhanDon,
@@ -701,6 +720,20 @@ const selectCustomer = (customerName: string) => {
 const closeCustomerSearchModal = () => {
   customerSearchVisible.value = false
   availableCustomers.value = []
+}
+
+const loadAvailableCustomersForDropdown = async () => {
+  // Only load if not already loaded or if data is stale
+  if (availableCustomers.value.length === 0 && !customerSearchLoading.value) {
+    customerSearchLoading.value = true
+    try {
+      await loadAvailableCustomers()
+    } catch (error) {
+      console.error('Error loading customers for dropdown:', error)
+    } finally {
+      customerSearchLoading.value = false
+    }
+  }
 }
 
 const showCustomerOrders = async (customerName: string, status: string) => {
@@ -810,6 +843,34 @@ const closeCustomerOrdersModal = () => {
   padding: 8px;
   min-width: 40px;
   height: 40px;
+}
+
+/* Customer select option styling */
+.customer-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 4px 0;
+}
+
+.customer-name {
+  font-weight: 500;
+  flex: 1;
+  margin-right: 8px;
+}
+
+.customer-stats-inline {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.customer-stats-inline .el-tag {
+  min-width: 20px;
+  text-align: center;
+  font-size: 11px;
+  padding: 0 4px;
 }
 
 /* Customer search modal */
