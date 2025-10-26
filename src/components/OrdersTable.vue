@@ -1,7 +1,21 @@
 <template>
-  <el-card class="w-full">
+  <el-card class="w-full orders-table-card">
     <template #header>
-      <div class="header-container">
+      <!-- Mobile Toggle Button -->
+      <div class="mobile-header-toggle" v-if="isMobile">
+        <el-button 
+          type="primary" 
+          :icon="showMobileHeader ? ArrowUp : ArrowDown"
+          @click="toggleMobileHeader"
+          size="small"
+          class="toggle-button"
+          circle
+          :title="showMobileHeader ? 'Ẩn bộ lọc' : 'Hiện bộ lọc'"
+        >
+        </el-button>
+      </div>
+
+      <div class="header-container" :class="{ 'mobile-hidden': isMobile && !showMobileHeader }">
         <!-- Top Row: Title + Customer Type + Add Button -->
         <div class="top-row">
           <div class="title-section">
@@ -83,7 +97,7 @@
         ref="tableRef"
         :data="filteredOrders"
         style="width: 100%"
-        height="600"
+        :height="tableHeight"
         v-loading="loading"
         row-key="rowIndex"
         :show-overflow-tooltip="true"
@@ -184,8 +198,8 @@
       </el-table>
       
       <!-- Pagination -->
-      <div class="flex justify-between items-center mt-4">
-        <div class="text-sm text-gray-500 flex items-center gap-2">
+      <div class="pagination-container">
+        <div class="pagination-info">
           <span>Hiển thị {{ filteredOrders.length }} trong {{ totalCount }} đơn hàng</span>
           <el-icon v-if="pageChanging" class="is-loading">
             <Loading />
@@ -252,7 +266,7 @@ import type { Order } from '@/types/order'
 import AddOrderForm from './AddOrderForm.vue'
 import OrderDetails from './OrderDetails.vue'
 import { ElMessage } from 'element-plus'
-import { Loading, View, CopyDocument, Warning, Document } from '@element-plus/icons-vue'
+import { Loading, View, CopyDocument, Warning, Document, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   selectedDate: { month: number; year: number }
@@ -269,11 +283,16 @@ const statusUpdating = ref<Record<number, boolean>>({})
 // Customer type selection
 const customerType = ref<'customer' | 'ctv'>('customer')
 
+// Mobile header toggle
+const showMobileHeader = ref(false)
+
 // Responsive dialog
 const windowWidth = ref(window.innerWidth)
+const windowHeight = ref(window.innerHeight)
 
 const updateWindowWidth = () => {
   windowWidth.value = window.innerWidth
+  windowHeight.value = window.innerHeight
 }
 
 onMounted(() => {
@@ -285,6 +304,29 @@ onBeforeUnmount(() => {
 })
 
 const isMobile = computed(() => windowWidth.value <= 768)
+
+// Toggle mobile header function
+const toggleMobileHeader = () => {
+  showMobileHeader.value = !showMobileHeader.value
+}
+
+// Dynamic table height calculation
+const tableHeight = computed(() => {
+  if (!isMobile.value) {
+    return 600 // Desktop default
+  }
+  
+  // Mobile: Use similar approach to desktop but with mobile constraints
+  const baseHeight = windowHeight.value
+  const headerHeight = showMobileHeader.value ? 200 : 50
+  const paginationHeight = 80 // Reduced for mobile
+  const reservedSpace = 60 // Space for safe area and padding
+  
+  const calculatedHeight = baseHeight - headerHeight - paginationHeight - reservedSpace
+  
+  // Use fixed height similar to desktop approach
+  return Math.max(calculatedHeight, 400) // Ensure reasonable minimum
+})
 
 const dialogWidth = computed(() => {
   if (windowWidth.value <= 480) return '95vw'
@@ -568,11 +610,45 @@ const duplicateOrder = (order: Order) => {
 </script>
 
 <style scoped>
+/* Orders Table Card Layout */
+.orders-table-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.orders-table-card .el-card__body) {
+  flex: 1;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Mobile Header Toggle */
+.mobile-header-toggle {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.toggle-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Header Layout */
 .header-container {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  transition: all 0.3s ease;
+}
+
+.header-container.mobile-hidden {
+  display: none;
 }
 
 .top-row {
@@ -646,8 +722,62 @@ const duplicateOrder = (order: Order) => {
   padding: 10px !important;
 }
 
+/* Desktop styling */
+@media (min-width: 769px) {
+  .mobile-header-toggle {
+    display: none;
+  }
+  
+  /* Pagination container for desktop */
+  .pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding: 0 16px;
+    position: static;
+    background: transparent;
+    border-top: none;
+  }
+  
+  .pagination-info {
+    font-size: 14px;
+    color: #606266;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
 @media (max-width: 768px) {
+  /* Mobile specific styling */
+  .orders-table-card {
+    height: 100vh;
+    margin: 0;
+    border-radius: 0;
+    position: relative;
+    width: 100%;
+  }
+  
+  :deep(.orders-table-card .el-card__header) {
+    padding: 0;
+    flex-shrink: 0;
+  }
+  
+  :deep(.orders-table-card .el-card__body) {
+    padding: 0 8px 0 8px;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - var(--header-height, 50px));
+    overflow: visible;
+  }
+  
   /* Header responsive */
+  .header-container {
+    padding: 12px;
+    background: #f5f7fa;
+  }
+  
   .top-row {
     flex-direction: column;
     gap: 12px;
@@ -696,6 +826,65 @@ const duplicateOrder = (order: Order) => {
   
   .filter-select {
     width: 100%;
+  }
+  
+  /* Table container optimization - Simplified like desktop */
+  .relative {
+    flex: 1;
+    display: block;
+    overflow: visible;
+  }
+  
+  /* Remove complex CSS that might interfere with table scroll */
+  :deep(.el-table) {
+    width: 100%;
+    /* Let Element Plus handle the scrolling naturally */
+  }
+  
+  /* Pagination mobile styling - Simplified */
+  .pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding: 8px;
+    background: #f9f9f9;
+    border-top: 1px solid #ebeef5;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .pagination-info {
+    font-size: 12px;
+    order: 2;
+    width: 100%;
+    text-align: center;
+  }
+  
+  :deep(.el-pagination) {
+    order: 1;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 0 auto;
+  }
+  
+  .pagination-info {
+    font-size: 12px;
+  }
+  
+  :deep(.el-pagination) {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  :deep(.el-pagination .el-pager) {
+    margin: 0 2px;
+  }
+  
+  :deep(.el-pagination .btn-prev),
+  :deep(.el-pagination .btn-next) {
+    margin: 0 2px;
   }
   
   :deep(.el-dialog) {

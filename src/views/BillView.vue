@@ -301,7 +301,7 @@
                     @click.stop="showCustomerOrders(customer.name, ORDER_STATUSES.SALES.DA_DAT_HANG)"
                   >
                     <span class="stat-number">{{ customer.daDatHangCount }}</span>
-                    <span class="stat-text">Đã đặt hàng</span>
+                    <span class="stat-text">Đã đặt</span>
                   </div>
                   <div 
                     class="stat-item success"
@@ -315,7 +315,7 @@
                     @click.stop="showCustomerOrders(customer.name, ORDER_STATUSES.SALES.DANG_CHO_GIAO)"
                   >
                     <span class="stat-number">{{ customer.dangChoGiaoCount }}</span>
-                    <span class="stat-text">Đang chờ giao</span>
+                    <span class="stat-text">Chờ giao</span>
                   </div>
                 </div>
               </div>
@@ -906,7 +906,9 @@ const closeCustomerOrdersModal = () => {
   cursor: pointer;
   transition: all 0.3s ease;
   min-width: 55px;
+  min-height: 60px;
   flex: 1;
+  justify-content: center;
 }
 
 .stat-item.success {
@@ -991,15 +993,85 @@ const closeCustomerOrdersModal = () => {
   .customer-card-stats {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: 10px;
+    padding: 0 8px;
   }
   
   .stat-item {
-    flex-direction: row;
-    justify-content: space-between;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     min-width: auto;
+    min-height: 55px;
     width: 100%;
-    padding: 8px 12px;
+    max-width: 80px;
+    margin: 0 auto;
+    padding: 8px 6px;
+    gap: 2px;
+  }
+  
+  .stat-number {
+    font-size: 16px;
+    font-weight: 700;
+  }
+  
+  .stat-text {
+    font-size: 9px;
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.2;
+  }
+}
+
+@media (max-width: 640px) {
+  .customer-card-stats {
+    gap: 8px;
+    padding: 0 10px;
+  }
+  
+  .stat-item {
+    max-width: 75px;
+    min-height: 50px;
+    padding: 7px 5px;
+  }
+  
+  .stat-number {
+    font-size: 15px;
+  }
+  
+  .stat-text {
+    font-size: 8.5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .customer-card {
+    padding: 12px;
+  }
+  
+  .customer-card-stats {
+    gap: 12px;
+    padding: 0 12px;
+  }
+  
+  .stat-item {
+    padding: 6px 4px;
+    border-radius: 6px;
+    max-width: 70px;
+    min-height: 45px;
+  }
+  
+  .stat-number {
+    font-size: 14px;
+  }
+  
+  .stat-text {
+    font-size: 8px;
+    font-weight: 600;
+  }
+  
+  .customer-card-name {
+    font-size: 14px;
   }
 }
 
