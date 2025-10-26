@@ -121,20 +121,50 @@
           <div class="field-row">
             <div class="field-item">
               <label class="field-label">Mã sản phẩm</label>
-              <el-input
-                v-if="isEditing"
-                v-model="editedOrder.productCode"
-                placeholder="Nhập mã sản phẩm để tự động load hình ảnh"
-                @blur="onProductCodeChange"
-                @keyup.enter="onProductCodeChange"
-                :loading="isSearchingProduct"
-              >
-                <template #suffix>
-                  <el-icon v-if="isSearchingProduct">
-                    <Loading />
-                  </el-icon>
-                </template>
-              </el-input>
+              <div v-if="isEditing" class="product-code-section">
+                <el-select
+                  v-model="editedOrder.productCode"
+                  placeholder="Chọn hoặc nhập mã sản phẩm"
+                  filterable
+                  remote
+                  allow-create
+                  default-first-option
+                  :remote-method="handleProductSearch"
+                  :loading="isLoadingProducts"
+                  clearable
+                  class="product-select"
+                  @change="onProductCodeSelect"
+                >
+                  <el-option
+                    v-for="product in productsList"
+                    :key="product.value"
+                    :label="product.label"
+                    :value="product.value"
+                  >
+                    <div class="product-option">
+                      <img 
+                        v-if="product.data?.productImage" 
+                        :src="product.data.productImage" 
+                        class="product-option-image" 
+                        alt=""
+                      />
+                      <div class="product-option-info">
+                        <div class="product-option-code">{{ product.data?.productCode }}</div>
+                        <div class="product-option-name">{{ product.data?.productName }}</div>
+                      </div>
+                    </div>
+                  </el-option>
+                </el-select>
+                <el-button
+                  type="primary"
+                  :icon="Search"
+                  circle
+                  size="small"
+                  class="search-button"
+                  @click="openProductsModal"
+                  title="Xem danh sách sản phẩm"
+                />
+              </div>
               <div v-else class="field-value">{{ order.productCode || '-' }}</div>
             </div>
           </div>
@@ -298,6 +328,61 @@
         Chỉnh sửa đơn hàng
       </el-button>
     </div>
+
+    <!-- Products Modal -->
+    <el-dialog
+      v-model="showProductsModal"
+      title="Danh sách sản phẩm"
+      width="80%"
+      :before-close="handleCloseProductsModal"
+    >
+      <div class="products-modal">
+        <div class="modal-search">
+          <el-input
+            v-model="modalSearchQuery"
+            placeholder="Tìm kiếm sản phẩm..."
+            :prefix-icon="Search"
+            clearable
+            @input="filterProducts"
+          />
+        </div>
+        
+        <div class="products-grid">
+          <div
+            v-for="product in filteredModalProducts"
+            :key="product.productCode"
+            class="product-card"
+            @click="selectProductFromModal(product)"
+          >
+            <div class="product-image-container">
+              <img
+                v-if="product.productImage"
+                :src="product.productImage"
+                :alt="product.productName"
+                class="product-card-image"
+              />
+              <div v-else class="product-no-image">
+                <el-icon size="24"><Picture /></el-icon>
+              </div>
+            </div>
+            <div class="product-card-info">
+              <div class="product-card-code">{{ product.productCode }}</div>
+              <div class="product-card-name">{{ product.productName }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="isLoadingModalProducts" class="modal-loading">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          <span>Đang tải danh sách sản phẩm...</span>
+        </div>
+
+        <div v-if="!isLoadingModalProducts && filteredModalProducts.length === 0" class="modal-empty">
+          <el-icon size="48"><Box /></el-icon>
+          <p>Không tìm thấy sản phẩm nào</p>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -306,6 +391,7 @@ import { ref, watch, onMounted } from 'vue'
 import { formatCurrency } from '@/utils/format'
 import type { Order } from '@/types/order'
 import type { Customer } from '@/types/customer'
+import type { Product } from '@/types/sheet'
 import { ElMessage } from 'element-plus'
 import { uploadImage } from '@/api/images'
 import { productsAPI } from '@/api/products'
@@ -313,7 +399,9 @@ import { getAllCustomers, clearCustomersCache } from '@/api/customers'
 import { 
   EditPen, 
   Picture,
-  Loading
+  Loading,
+  Search,
+  Box
 } from '@element-plus/icons-vue'
 
 const props = defineProps<{
@@ -333,6 +421,18 @@ const isSearchingProduct = ref(false)
 // Customer dropdown state
 const customersList = ref<Customer[]>([])
 const isLoadingCustomers = ref(false)
+
+// Products dropdown state
+const productsList = ref<Array<{ value: string; label: string; data: Product }>>([])
+const allProductsData = ref<Array<{ value: string; label: string; data: Product }>>([]) // Store original data
+const isLoadingProducts = ref(false)
+
+// Products modal state
+const showProductsModal = ref(false)
+const modalSearchQuery = ref('')
+const allProducts = ref<Product[]>([])
+const filteredModalProducts = ref<Product[]>([])
+const isLoadingModalProducts = ref(false)
 
 // Helper function to convert date format for date picker
 const formatDateForPicker = (dateStr: string) => {
@@ -368,7 +468,143 @@ const imageInput = ref<HTMLInputElement>()
 const imagePreview = ref('')
 const imageFile = ref<File | null>(null)
 
-// Product code search functionality
+// Product dropdown and modal functionality
+const onProductCodeSelect = async (selectedProductCode: string) => {
+  if (!selectedProductCode) return
+  
+  const selectedProduct = productsList.value.find(p => p.value === selectedProductCode)
+  if (selectedProduct && selectedProduct.data) {
+    // Existing product - load its data
+    editedOrder.value.productName = selectedProduct.data.productName
+    if (selectedProduct.data.productImage) {
+      imagePreview.value = selectedProduct.data.productImage
+      editedOrder.value.productImage = selectedProduct.data.productImage
+      // Clear file selection since we're using existing image
+      imageFile.value = null
+    }
+  }
+}
+
+// Load all products for dropdown
+const loadAllProducts = async () => {
+  try {
+    isLoadingProducts.value = true
+    const result = await productsAPI.getAllProducts()
+    
+    if (result.success && result.data) {
+      const formattedProducts = result.data.map(product => ({
+        value: product.productCode,
+        label: `${product.productCode} - ${product.productName}`,
+        data: product
+      }))
+      
+      // Store original data for filtering
+      allProductsData.value = formattedProducts
+      productsList.value = formattedProducts
+    }
+  } catch (error) {
+    console.error('Error loading products:', error)
+  } finally {
+    isLoadingProducts.value = false
+  }
+}
+
+// Handle product search/filter (local filtering only)
+const handleProductSearch = (query: string) => {
+  if (!query) {
+    // If no query, show all products
+    productsList.value = allProductsData.value
+    return
+  }
+  
+  // Filter products locally from stored data
+  const filteredProducts = allProductsData.value.filter(product =>
+    product.data.productCode.toLowerCase().includes(query.toLowerCase()) ||
+    product.data.productName.toLowerCase().includes(query.toLowerCase())
+  )
+  
+  productsList.value = filteredProducts
+}
+
+// Products modal functions
+const loadModalProducts = async () => {
+  // If products already loaded for dropdown, use that data
+  if (allProductsData.value.length > 0) {
+    allProducts.value = allProductsData.value.map(item => item.data)
+    filteredModalProducts.value = allProducts.value
+    return
+  }
+  
+  // Otherwise load from API
+  try {
+    isLoadingModalProducts.value = true
+    const result = await productsAPI.getAllProducts()
+    
+    if (result.success && result.data) {
+      allProducts.value = result.data
+      filteredModalProducts.value = result.data
+      
+      // Also update dropdown data
+      const formattedProducts = result.data.map(product => ({
+        value: product.productCode,
+        label: `${product.productCode} - ${product.productName}`,
+        data: product
+      }))
+      allProductsData.value = formattedProducts
+      productsList.value = formattedProducts
+    }
+  } catch (error) {
+    console.error('Error loading modal products:', error)
+    ElMessage.error('Lỗi khi tải danh sách sản phẩm')
+  } finally {
+    isLoadingModalProducts.value = false
+  }
+}
+
+const filterProducts = () => {
+  if (!modalSearchQuery.value) {
+    filteredModalProducts.value = allProducts.value
+    return
+  }
+  
+  const query = modalSearchQuery.value.toLowerCase()
+  filteredModalProducts.value = allProducts.value.filter(product =>
+    product.productCode.toLowerCase().includes(query) ||
+    product.productName.toLowerCase().includes(query)
+  )
+}
+
+const selectProductFromModal = (product: Product) => {
+  editedOrder.value.productCode = product.productCode
+  editedOrder.value.productName = product.productName
+  if (product.productImage) {
+    imagePreview.value = product.productImage
+    editedOrder.value.productImage = product.productImage
+    imageFile.value = null
+  }
+  showProductsModal.value = false
+  ElMessage.success('Đã chọn sản phẩm')
+}
+
+const handleCloseProductsModal = () => {
+  showProductsModal.value = false
+  modalSearchQuery.value = ''
+}
+
+const openProductsModal = async () => {
+  showProductsModal.value = true
+  
+  // Use already loaded data if available
+  if (allProductsData.value.length > 0) {
+    allProducts.value = allProductsData.value.map(item => item.data)
+    filteredModalProducts.value = allProducts.value
+  } else {
+    // Load products if not already loaded
+    await loadModalProducts()
+  }
+}
+
+// Legacy function for backward compatibility (keep for watch)
 const onProductCodeChange = async () => {
   const productCode = editedOrder.value.productCode?.trim()
   if (!productCode) return
@@ -386,7 +622,6 @@ const onProductCodeChange = async () => {
         // Clear file selection since we're using existing image
         imageFile.value = null
       }
-      // ElMessage.success('Đã tải thông tin sản phẩm từ database')
     } else {
       // Product not found - user can continue with manual entry
       ElMessage.info('Không tìm thấy sản phẩm. Bạn có thể nhập thông tin và ảnh mới.')
@@ -470,9 +705,10 @@ defineExpose({
   resetEditingState
 })
 
-// Load customers on component mount
+// Load customers and products on component mount
 onMounted(() => {
   loadAllCustomers()
+  loadAllProducts()
 })
 
 const getStatusType = (status: string) => {
@@ -882,6 +1118,153 @@ watch(() => editedOrder.value.productCode, (newProductCode) => {
   width: 100%;
 }
 
+/* Product Code Section */
+.product-code-section {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.product-select {
+  flex: 1;
+}
+
+.search-button {
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+/* Product Option Styling */
+.product-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.product-option-image {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.product-option-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.product-option-code {
+  font-weight: 600;
+  font-size: 13px;
+  color: #374151;
+}
+
+.product-option-name {
+  font-size: 12px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Products Modal */
+.products-modal {
+  max-height: 60vh;
+}
+
+.modal-search {
+  margin-bottom: 16px;
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.product-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+}
+
+.product-card:hover {
+  border-color: #6366f1;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+  transform: translateY(-1px);
+}
+
+.product-image-container {
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f9fafb;
+  margin-bottom: 8px;
+}
+
+.product-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-no-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #9ca3af;
+}
+
+.product-card-info {
+  text-align: center;
+}
+
+.product-card-code {
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.product-card-name {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.modal-loading,
+.modal-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #6b7280;
+  gap: 8px;
+}
+
+.modal-loading .is-loading {
+  font-size: 24px;
+}
+
 /* Element Plus Overrides */
 :deep(.el-input__wrapper) {
   border-color: #d1d5db;
@@ -1066,6 +1449,33 @@ watch(() => editedOrder.value.productCode, (newProductCode) => {
   
   .no-image-text {
     font-size: 9px;
+  }
+
+  /* Products modal mobile */
+  :deep(.el-dialog) {
+    width: 95% !important;
+    margin: 0 auto !important;
+  }
+  
+  .products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+  }
+  
+  .product-image-container {
+    height: 80px;
+  }
+  
+  .product-card {
+    padding: 8px;
+  }
+  
+  .product-card-code {
+    font-size: 12px;
+  }
+  
+  .product-card-name {
+    font-size: 11px;
   }
 }
 

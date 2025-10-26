@@ -361,6 +361,60 @@ router.get('/debug/products', async (req, res) => {
   }
 })
 
+// Route để lấy tất cả sản phẩm
+router.get('/products', async (req, res) => {
+  try {
+    const currentDate = new Date()
+    let allProducts = []
+
+    // Get products from current month
+    try {
+      const currentMonthProducts = await readSheet(SHEET_TYPES.PRODUCTS, currentDate)
+      allProducts = [...currentMonthProducts]
+    } catch (error) {
+      console.log(`No products sheet found for current month: ${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`)
+    }
+
+    // Get products from previous months (last 6 months)
+    for (let i = 1; i <= 6; i++) {
+      const pastDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1)
+      try {
+        const pastProducts = await readSheet(SHEET_TYPES.PRODUCTS, pastDate)
+        
+        // Only add products that don't already exist (avoid duplicates)
+        pastProducts.forEach(product => {
+          const exists = allProducts.some(existing => existing.productCode === product.productCode)
+          if (!exists) {
+            allProducts.push(product)
+          }
+        })
+      } catch (error) {
+        console.log(`No products sheet found for ${pastDate.getMonth() + 1}/${pastDate.getFullYear()}`)
+      }
+    }
+
+    // Sort by most recent first
+    allProducts.sort((a, b) => {
+      const dateA = new Date(a.date)
+      const dateB = new Date(b.date)
+      return dateB - dateA
+    })
+
+    res.json({
+      success: true,
+      data: allProducts,
+      total: allProducts.length,
+    })
+  } catch (error) {
+    console.error('Error getting all products:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get products from sheet',
+      message: error.message,
+    })
+  }
+})
+
 // Route để tìm kiếm sản phẩm theo mã
 router.get('/products/search/:productCode', async (req, res) => {
   try {
