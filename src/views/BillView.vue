@@ -290,6 +290,20 @@
                 </el-tag>
                 <div class="customer-card-stats">
                   <div 
+                    class="stat-item info"
+                    @click.stop="showCustomerOrders(customer.name, ORDER_STATUSES.SALES.NHAN_DON)"
+                  >
+                    <span class="stat-number">{{ customer.nhanDonCount }}</span>
+                    <span class="stat-text">Nhận đơn</span>
+                  </div>
+                  <div 
+                    class="stat-item primary"
+                    @click.stop="showCustomerOrders(customer.name, ORDER_STATUSES.SALES.DA_DAT_HANG)"
+                  >
+                    <span class="stat-number">{{ customer.daDatHangCount }}</span>
+                    <span class="stat-text">Đã đặt hàng</span>
+                  </div>
+                  <div 
                     class="stat-item success"
                     @click.stop="showCustomerOrders(customer.name, ORDER_STATUSES.SALES.HANG_VE)"
                   >
@@ -411,6 +425,8 @@ const customerSearchVisible = ref(false)
 const customerSearchLoading = ref(false)
 const availableCustomers = ref<Array<{
   name: string
+  nhanDonCount: number
+  daDatHangCount: number
   hangVeCount: number
   dangChoGiaoCount: number
 }>>([])
@@ -633,7 +649,7 @@ const openCustomerSearchModal = async () => {
 }
 
 const loadAvailableCustomers = async () => {
-  const customerMap = new Map<string, { hangVe: number, dangChoGiao: number }>()
+  const customerMap = new Map<string, { nhanDon: number, daDatHang: number, hangVe: number, dangChoGiao: number }>()
   
   // Fetch orders for each selected month and customer type
   for (const month of billForm.value.months.length > 0 ? billForm.value.months : [new Date().getMonth() + 1]) {
@@ -648,11 +664,15 @@ const loadAvailableCustomers = async () => {
       
       const customerName = order.customerName.trim()
       if (!customerMap.has(customerName)) {
-        customerMap.set(customerName, { hangVe: 0, dangChoGiao: 0 })
+        customerMap.set(customerName, { nhanDon: 0, daDatHang: 0, hangVe: 0, dangChoGiao: 0 })
       }
       
       const customer = customerMap.get(customerName)!
-      if (order.status === ORDER_STATUSES.SALES.HANG_VE) {
+      if (order.status === ORDER_STATUSES.SALES.NHAN_DON) {
+        customer.nhanDon++
+      } else if (order.status === ORDER_STATUSES.SALES.DA_DAT_HANG) {
+        customer.daDatHang++
+      } else if (order.status === ORDER_STATUSES.SALES.HANG_VE) {
         customer.hangVe++
       } else if (order.status === ORDER_STATUSES.SALES.DANG_CHO_GIAO) {
         customer.dangChoGiao++
@@ -662,9 +682,11 @@ const loadAvailableCustomers = async () => {
   
   // Filter customers who have at least one order with valid status
   availableCustomers.value = Array.from(customerMap.entries())
-    .filter(([, counts]) => counts.hangVe > 0 || counts.dangChoGiao > 0)
+    .filter(([, counts]) => counts.nhanDon > 0 || counts.daDatHang > 0 || counts.hangVe > 0 || counts.dangChoGiao > 0)
     .map(([name, counts]) => ({
       name,
+      nhanDonCount: counts.nhanDon,
+      daDatHangCount: counts.daDatHang,
       hangVeCount: counts.hangVe,
       dangChoGiaoCount: counts.dangChoGiao
     }))
@@ -869,7 +891,7 @@ const closeCustomerOrdersModal = () => {
 
 .customer-card-stats {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
   justify-content: center;
 }
@@ -879,11 +901,12 @@ const closeCustomerOrdersModal = () => {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 8px 12px;
+  padding: 6px 8px;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
-  min-width: 60px;
+  min-width: 55px;
+  flex: 1;
 }
 
 .stat-item.success {
@@ -908,13 +931,35 @@ const closeCustomerOrdersModal = () => {
   transform: scale(1.05);
 }
 
+.stat-item.info {
+  background: #f0f9ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
+.stat-item.info:hover {
+  background: #dbeafe;
+  transform: scale(1.05);
+}
+
+.stat-item.primary {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.stat-item.primary:hover {
+  background: #f1f5f9;
+  transform: scale(1.05);
+}
+
 .stat-number {
   font-size: 18px;
   font-weight: 700;
 }
 
 .stat-text {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -944,7 +989,8 @@ const closeCustomerOrdersModal = () => {
   }
   
   .customer-card-stats {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
   
@@ -953,6 +999,7 @@ const closeCustomerOrdersModal = () => {
     justify-content: space-between;
     min-width: auto;
     width: 100%;
+    padding: 8px 12px;
   }
 }
 
