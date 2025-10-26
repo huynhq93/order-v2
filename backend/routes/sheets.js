@@ -585,55 +585,61 @@ router.post('/revenue', async (req, res) => {
           profitMargin,
         },
       ]
-    } else if (type === 'year') {
-      // Get data for full year (12 months)
-      let yearlyCustomerIncome = 0
-      let yearlyCtvIncome = 0
-      let yearlyExpense = 0
-
-      for (let m = 1; m <= 12; m++) {
+        } else if (type === 'year') {
+      // Get data for full year (12 months) - Load all months in parallel
+      const months = Array.from({ length: 12 }, (_, i) => i + 1)
+      
+      // Create all promises for parallel execution
+      const monthPromises = months.map(async (m) => {
         let monthCustomerIncome = 0
         let monthCtvIncome = 0
         let monthExpense = 0
 
-        // Get customer income for this month
-        try {
-          const customerData = await readSheet(SHEET_TYPES.ORDERS, new Date(year, m - 1, 1))
-          customerData.forEach((order) => {
+        // Load all data for this month in parallel
+        const [customerResult, ctvResult, expenseResult] = await Promise.allSettled([
+          // Get customer income for this month
+          readSheet(SHEET_TYPES.ORDERS, new Date(year, m - 1, 1)).catch(() => []),
+          
+          // Get CTV income for this month
+          readSheet(SHEET_TYPES.CTV_ORDERS, new Date(year, m - 1, 1)).catch(() => []),
+          
+          // Get expenses for this month from cell K2
+          (async () => {
+            try {
+              const chinaSheetName = `ORDCHINA_${m}_${year}`
+              const chinaResponse = await sheets.spreadsheets.values.get({
+                spreadsheetId,
+                range: `${chinaSheetName}!K2`, // Cell K2 contains total import cost
+              })
+              const chinaRows = chinaResponse.data.values || []
+              return chinaRows.length > 0 && chinaRows[0][0] ? parseCurrency(chinaRows[0][0]) : 0
+            } catch (error) {
+              return 0
+            }
+          })()
+        ])
+
+        // Process customer income
+        if (customerResult.status === 'fulfilled') {
+          customerResult.value.forEach((order) => {
             if (order.total) {
               monthCustomerIncome += parseCurrency(order.total)
             }
           })
-        } catch (error) {
-          // Sheet might not exist for this month, continue
         }
 
-        // Get CTV income for this month
-        try {
-          const ctvData = await readSheet(SHEET_TYPES.CTV_ORDERS, new Date(year, m - 1, 1))
-          ctvData.forEach((order) => {
+        // Process CTV income
+        if (ctvResult.status === 'fulfilled') {
+          ctvResult.value.forEach((order) => {
             if (order.total) {
               monthCtvIncome += parseCurrency(order.total)
             }
           })
-        } catch (error) {
-          // Sheet might not exist for this month, continue
         }
 
-        // Get expenses for this month from cell K2
-        try {
-          const chinaSheetName = `ORDCHINA_${m}_${year}`
-          const chinaResponse = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: `${chinaSheetName}!K2`, // Cell K2 contains total import cost
-          })
-
-          const chinaRows = chinaResponse.data.values || []
-          if (chinaRows.length > 0 && chinaRows[0][0]) {
-            monthExpense = parseCurrency(chinaRows[0][0])
-          }
-        } catch (error) {
-          // Sheet might not exist for this month, continue
+        // Process expenses
+        if (expenseResult.status === 'fulfilled') {
+          monthExpense = expenseResult.value
         }
 
         const monthTotalIncome = monthCustomerIncome + monthCtvIncome
@@ -641,7 +647,8 @@ router.post('/revenue', async (req, res) => {
         const monthProfitMargin =
           monthTotalIncome > 0 ? Math.round((monthProfit / monthTotalIncome) * 100) : 0
 
-        details.push({
+        return {
+          month: m,
           period: `${m}/${year}`,
           customerIncome: monthCustomerIncome,
           ctvIncome: monthCtvIncome,
@@ -649,12 +656,28 @@ router.post('/revenue', async (req, res) => {
           expense: monthExpense,
           profit: monthProfit,
           profitMargin: monthProfitMargin,
-        })
+        }
+      })
 
-        yearlyCustomerIncome += monthCustomerIncome
-        yearlyCtvIncome += monthCtvIncome
-        yearlyExpense += monthExpense
-      }
+      // Execute all month promises in parallel
+      const monthResults = await Promise.all(monthPromises)
+
+      // Sort results by month and calculate totals
+      const sortedResults = monthResults.sort((a, b) => a.month - b.month)
+      
+      let yearlyCustomerIncome = 0
+      let yearlyCtvIncome = 0
+      let yearlyExpense = 0
+
+      details = sortedResults.map(result => {
+        yearlyCustomerIncome += result.customerIncome
+        yearlyCtvIncome += result.ctvIncome
+        yearlyExpense += result.expense
+        
+        // Return without the month field
+        const { month, ...detailResult } = result
+        return detailResult
+      })
 
       customerIncome = yearlyCustomerIncome
       ctvIncome = yearlyCtvIncome
