@@ -27,7 +27,6 @@ declare module 'vue' {
     ElImage: typeof import('element-plus/es')['ElImage']
     ElInput: typeof import('element-plus/es')['ElInput']
     ElInputNumber: typeof import('element-plus/es')['ElInputNumber']
-    ElLoadingWrapper: typeof import('element-plus/es')['ElLoadingWrapper']
     ElMenu: typeof import('element-plus/es')['ElMenu']
     ElMenuItem: typeof import('element-plus/es')['ElMenuItem']
     ElOption: typeof import('element-plus/es')['ElOption']
@@ -58,7 +57,6 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     ShippingCodeManager: typeof import('./src/components/ShippingCodeManager.vue')['default']
-    ShippingCodeManager_temp: typeof import('./src/components/ShippingCodeManager_temp.vue')['default']
     TheWelcome: typeof import('./src/components/TheWelcome.vue')['default']
     WelcomeItem: typeof import('./src/components/WelcomeItem.vue')['default']
   }

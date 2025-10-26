@@ -301,7 +301,7 @@ import type { Order } from '@/types/order'
 // Extended Order type with unique ID for multi-sheet support
 interface ExtendedOrder extends Order {
   uniqueId: string
-  sheetType: string
+  sheetType: 'customer' | 'ctv'
 }
 import { ElMessage } from 'element-plus'
 import { 
@@ -337,7 +337,7 @@ const representativeOrderIndex = ref<string | null>(null)
 const allOrders = ref<ExtendedOrder[]>([])
 
 // Debounce timer
-let refreshTimer: NodeJS.Timeout | null = null
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
 // Debounced refresh to avoid too many API calls
 const debouncedRefresh = () => {
@@ -384,11 +384,12 @@ const refreshData = async () => {
     
     // Fetch orders from selected sheets
     for (const sheetType of selectedSheets.value) {
-      await store.fetchOrders(props.selectedDate, sheetType as 'customer' | 'ctv')
+      const customerType = sheetType as 'customer' | 'ctv'
+      await store.fetchOrders(props.selectedDate, customerType)
       // Add sheet type info and unique ID to orders
       const ordersWithSheetType = store.orders.map(order => ({
         ...order,
-        sheetType,
+        sheetType: customerType,
         uniqueId: `${sheetType}-${order.rowIndex}`, // Create unique ID
         managementCode: order.orderCode // Map orderCode to managementCode for consistency
       })) as ExtendedOrder[]
@@ -559,7 +560,7 @@ const processOrders = async () => {
       console.log('Step 2.3:', shippingCode)
       
       // First, fetch fresh orders for the specific sheet to ensure store has the data
-      await store.fetchOrders(props.selectedDate, order.sheetType || 'customer')
+      await store.fetchOrders(props.selectedDate, order.sheetType)
       
       await store.updateOrderWithShipping(
         order.rowIndex,
@@ -567,7 +568,7 @@ const processOrders = async () => {
         shippingCode,
         ORDER_STATUSES.SALES.DA_DAT_HANG,
         props.selectedDate,
-        order.sheetType || 'customer'
+        order.sheetType
       )
       console.log('Step 2.4: Updated order successfully')
       successCount++

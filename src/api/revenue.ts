@@ -8,7 +8,7 @@ const api = axios.create({
 // Add auth headers to all requests
 api.interceptors.request.use((config) => {
   const authHeaders = getAuthHeaders()
-  config.headers = { ...config.headers, ...authHeaders }
+  Object.assign(config.headers, authHeaders)
   return config
 })
 
