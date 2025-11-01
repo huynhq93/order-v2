@@ -124,6 +124,67 @@
       </el-card>
     </div>
 
+    <!-- Order Count Chart for Monthly View -->
+    <div class="order-chart-section" v-if="revenueData && reportType === 'month'">
+      <el-card>
+        <template #header>
+          <div class="chart-header">
+            <span class="chart-title">Số lượng đơn hàng theo ngày - {{ selectedDate.month }}/{{ selectedDate.year }}</span>
+          </div>
+        </template>
+        <div class="order-chart-container">
+          <div class="chart-legend">
+            <div class="legend-item">
+              <div class="legend-color customer-color"></div>
+              <span>Khách hàng</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color ctv-color"></div>
+              <span>CTV</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color total-color"></div>
+              <span>Tổng cộng</span>
+            </div>
+          </div>
+          <div class="order-chart">
+            <div 
+              v-for="detail in revenueData.details" 
+              :key="detail.period"
+              class="chart-bar-group"
+            >
+              <div class="chart-labels">
+                <span class="day-label">{{ detail.period }}</span>
+              </div>
+              <div class="chart-bars">
+                <div 
+                  class="chart-bar customer-bar"
+                  :style="{ height: getBarHeight(detail.customerOrderCount || 0) + '%' }"
+                  :title="`Khách hàng: ${detail.customerOrderCount || 0} đơn`"
+                >
+                  <span class="bar-value" v-if="(detail.customerOrderCount || 0) > 0">{{ detail.customerOrderCount || 0 }}</span>
+                </div>
+                <div 
+                  class="chart-bar ctv-bar"
+                  :style="{ height: getBarHeight(detail.ctvOrderCount || 0) + '%' }"
+                  :title="`CTV: ${detail.ctvOrderCount || 0} đơn`"
+                >
+                  <span class="bar-value" v-if="(detail.ctvOrderCount || 0) > 0">{{ detail.ctvOrderCount || 0 }}</span>
+                </div>
+                <div 
+                  class="chart-bar total-bar"
+                  :style="{ height: getBarHeight(detail.totalOrderCount || 0) + '%' }"
+                  :title="`Tổng: ${detail.totalOrderCount || 0} đơn`"
+                >
+                  <span class="bar-value" v-if="(detail.totalOrderCount || 0) > 0">{{ detail.totalOrderCount || 0 }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-card>
+    </div>
+
     <!-- Detailed Revenue Table -->
     <div class="revenue-table-section" v-if="revenueData">
       <el-card>
@@ -233,6 +294,9 @@ interface RevenueDetail {
   expense: number
   profit: number
   profitMargin: number
+  customerOrderCount?: number
+  ctvOrderCount?: number
+  totalOrderCount?: number
 }
 
 interface RevenueData {
@@ -331,6 +395,21 @@ const updateChartData = () => {
       ]
     }
   }
+}
+
+// Function to calculate bar height for order count chart
+const getBarHeight = (value: number) => {
+  if (!revenueData.value?.details) return 0
+  
+  // Find max value across all order counts for proper scaling
+  const allValues = revenueData.value.details.flatMap(detail => [
+    detail.customerOrderCount || 0,
+    detail.ctvOrderCount || 0,
+    detail.totalOrderCount || 0
+  ])
+  
+  const maxValue = Math.max(...allValues, 1) // Minimum 1 to avoid division by 0
+  return Math.max((value / maxValue) * 100, value > 0 ? 5 : 0) // Minimum 5% height if value > 0
 }
 
 const loadRevenueData = async () => {
@@ -455,6 +534,10 @@ onMounted(() => {
   margin-bottom: 24px;
 }
 
+.order-chart-section {
+  margin-bottom: 24px;
+}
+
 .chart-header {
   display: flex;
   justify-content: space-between;
@@ -470,6 +553,120 @@ onMounted(() => {
 .chart-container {
   height: 400px;
   padding: 20px 0;
+}
+
+.order-chart-container {
+  padding: 20px 0;
+}
+
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+
+.customer-color {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.ctv-color {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.total-color {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.order-chart {
+  display: flex;
+  align-items: end;
+  justify-content: flex-start;
+  gap: 8px;
+  height: 300px;
+  padding: 0 20px;
+  overflow-x: auto;
+  min-width: 100%;
+}
+
+.chart-bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.chart-labels {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.day-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  writing-mode: horizontal-tb;
+}
+
+.chart-bars {
+  display: flex;
+  align-items: end;
+  gap: 4px;
+  height: 250px;
+}
+
+.chart-bar {
+  width: 20px;
+  min-height: 4px;
+  border-radius: 4px 4px 0 0;
+  position: relative;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.chart-bar:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
+.customer-bar {
+  background: linear-gradient(to top, #10b981, #34d399);
+}
+
+.ctv-bar {
+  background: linear-gradient(to top, #3b82f6, #60a5fa);
+}
+
+.total-bar {
+  background: linear-gradient(to top, #8b5cf6, #a78bfa);
+}
+
+.bar-value {
+  position: absolute;
+  top: -20px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
 }
 
 .summary-card {
@@ -633,6 +830,43 @@ onMounted(() => {
     gap: 12px;
     align-items: stretch;
   }
+
+  .chart-legend {
+    gap: 16px;
+  }
+
+  .legend-item {
+    font-size: 13px;
+  }
+
+  .order-chart {
+    gap: 4px;
+    padding: 0 10px;
+    height: 250px;
+    justify-content: flex-start;
+  }
+
+  .chart-bar-group {
+    min-width: 60px;
+  }
+
+  .chart-bars {
+    gap: 2px;
+    height: 200px;
+  }
+
+  .chart-bar {
+    width: 16px;
+  }
+
+  .day-label {
+    font-size: 11px;
+  }
+
+  .bar-value {
+    font-size: 10px;
+    top: -18px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -646,6 +880,44 @@ onMounted(() => {
 
   .subtitle {
     font-size: 0.9rem;
+  }
+
+  .chart-legend {
+    gap: 12px;
+    justify-content: flex-start;
+  }
+
+  .legend-item {
+    font-size: 12px;
+  }
+
+  .order-chart {
+    gap: 2px;
+    padding: 0 8px;
+    height: 220px;
+    justify-content: flex-start;
+  }
+
+  .chart-bar-group {
+    min-width: 50px;
+  }
+
+  .chart-bars {
+    gap: 1px;
+    height: 180px;
+  }
+
+  .chart-bar {
+    width: 14px;
+  }
+
+  .day-label {
+    font-size: 10px;
+  }
+
+  .bar-value {
+    font-size: 9px;
+    top: -16px;
   }
 }
 </style>
