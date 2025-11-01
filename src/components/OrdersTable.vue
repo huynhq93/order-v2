@@ -166,6 +166,8 @@
               @change="(value: string) => handleStatusChange(row.rowIndex, value)"
               :class="getStatusColor(row.status)"
             >
+              <el-option label="NHẬN ĐƠN" value="NHẬN ĐƠN" />
+              <el-option label="HÀNG VIỆT" value="HÀNG VIỆT" />
               <el-option label="THÀNH CÔNG" value="THÀNH CÔNG" />
               <el-option label="HUỶ ĐƠN" value="HUỶ ĐƠN" />
               <el-option label="HOÀN HÀNG" value="HOÀN HÀNG" />
@@ -368,6 +370,7 @@ const isFiltering = ref(false)
 
 const statusOptions = [
   'NHẬN ĐƠN',
+  'HÀNG VIỆT',
   'ĐÃ ĐẶT HÀNG',
   'HÀNG VỀ',
   'ĐANG CHỜ GIAO',
