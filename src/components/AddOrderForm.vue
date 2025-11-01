@@ -515,6 +515,21 @@ const loadAllProducts = async () => {
   }
 }
 
+// Function to reload products data - useful when new products are added
+const reloadProducts = async () => {
+  console.log('Reloading products data...')
+  // Clear existing data first
+  allProductsData.value = []
+  productsList.value = []
+  allProducts.value = []
+  filteredModalProducts.value = []
+  
+  // Reload from API
+  await loadAllProducts()
+  
+  console.log('Products reloaded:', allProductsData.value.length, 'items')
+}
+
 // Handle product search/filter (local filtering only)
 const handleProductSearch = (query: string) => {
   if (!query) {
@@ -733,6 +748,9 @@ const handleSubmit = async () => {
     // Clear customers cache since a new customer might have been added
     clearCustomersCache()
     
+    // Reload products since a new product might have been added
+    await reloadProducts()
+    
     ElMessage.success('Thêm đơn hàng thành công!')
     emit('order-added')
     resetForm()
@@ -793,10 +811,21 @@ const populateForm = (orderData: Partial<Order>) => {
   }
 }
 
+// Function to refresh all data when form is opened
+const refreshFormData = async () => {
+  console.log('Refreshing form data...')
+  // Reload both customers and products
+  await Promise.all([
+    loadAllCustomers(),
+    reloadProducts()
+  ])
+}
+
 // Expose functions for parent component
 defineExpose({
   populateForm,
-  resetForm
+  resetForm,
+  refreshFormData
 })
 
 // Load customers and products on component mount

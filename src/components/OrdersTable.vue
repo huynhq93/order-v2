@@ -406,6 +406,14 @@ watch(() => props.selectedDate, async (newDate) => {
   }
 }, { deep: true, immediate: true })
 
+// Watch showAddDialog to refresh form data when dialog opens
+watch(showAddDialog, async (isOpen) => {
+  if (isOpen && addOrderFormRef.value?.refreshFormData) {
+    // Refresh form data when dialog opens to get latest products and customers
+    await addOrderFormRef.value.refreshFormData()
+  }
+})
+
 // Optimized computed for unique customer names with memoization
 const uniqueCustomerNames = computed(() => {
   const ordersData = orders.value
