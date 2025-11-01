@@ -27,7 +27,12 @@ export const uploadImage = async (imageFile: File) => {
     return res.data.url
   } catch (error) {
     console.error('Upload error:', error)
-    console.error('Error response:', error.response?.data)
+
+    // Type guard for axios error
+    if (axios.isAxiosError(error)) {
+      console.error('Error response:', error.response?.data)
+    }
+
     throw error
   }
 }
