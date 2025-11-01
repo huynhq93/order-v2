@@ -122,10 +122,16 @@ export async function initAccounts(): Promise<{
 }
 
 // Add authorization header to requests
-export function getAuthHeaders(): Record<string, string> {
+export function getAuthHeaders(options?: { skipContentType?: boolean }): Record<string, string> {
   const token = getAuthToken()
-  return {
-    'Content-Type': 'application/json',
+  const headers: Record<string, string> = {
     ...(token && { Authorization: `Bearer ${token}` }),
   }
+
+  // Add Content-Type by default, unless explicitly skipped
+  if (!options?.skipContentType) {
+    headers['Content-Type'] = 'application/json'
+  }
+
+  return headers
 }

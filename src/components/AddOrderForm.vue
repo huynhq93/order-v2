@@ -701,6 +701,7 @@ const handleSubmit = async () => {
         
         // Compress image
         const compressedFile = await compressImage(file.value)
+        console.log('compressedFile',compressedFile)
         
         // Upload image
         const uploadResponse = await uploadImage(compressedFile)
