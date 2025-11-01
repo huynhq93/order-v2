@@ -355,7 +355,7 @@ const pagerCount = computed(() => {
 // Use shallowRef for better performance on filter changes
 const filters = shallowRef({
   customerName: '',
-  statuses: ['NHẬN ĐƠN', 'ĐÃ ĐẶT HÀNG', 'HÀNG VỀ', 'ĐANG CHỜ GIAO', 'ĐANG GIAO'] as string[],
+  statuses: ['NHẬN ĐƠN', 'ĐÃ ĐẶT HÀNG', 'HÀNG VIỆT', 'HÀNG VỀ', 'ĐANG CHỜ GIAO', 'ĐANG GIAO'] as string[],
 })
 
 // Pagination state
