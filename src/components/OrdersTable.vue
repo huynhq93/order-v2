@@ -442,15 +442,23 @@ const preFilteredOrders = computed(() => {
   
   const { customerName, statuses } = filters.value
   
-  // If no filters applied, return all orders
+  // First sort all orders by rowIndex descending (newest first)
+  const sortedOrders = [...ordersData].sort((a, b) => {
+    // Ensure rowIndex is treated as number for proper sorting
+    const aIndex = typeof a.rowIndex === 'number' ? a.rowIndex : parseInt(String(a.rowIndex)) || 0
+    const bIndex = typeof b.rowIndex === 'number' ? b.rowIndex : parseInt(String(b.rowIndex)) || 0
+    return bIndex - aIndex
+  })
+  
+  // If no filters applied, return all sorted orders
   if (!customerName && statuses.length === 0) {
-    return ordersData
+    return sortedOrders
   }
   
-  // Use optimized filtering
+  // Apply filters to sorted orders
   const filtered = []
-  for (let i = 0; i < ordersData.length; i++) {
-    const order = ordersData[i]
+  for (let i = 0; i < sortedOrders.length; i++) {
+    const order = sortedOrders[i]
     
     // Check customer name first (usually more selective)
     if (customerName && order.customerName !== customerName) {
