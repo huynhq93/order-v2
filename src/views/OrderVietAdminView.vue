@@ -1,5 +1,8 @@
 <template>
   <div class="order-viet-admin">
+    <!-- Navigation Menu -->
+    <NavigationMenu active-menu-item="order-viet-admin" />
+
     <el-card class="header-card">
       <h1>Quản Lý Bill Hàng Việt (Admin)</h1>
 
@@ -142,6 +145,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { EditPen, Picture } from '@element-plus/icons-vue'
+import NavigationMenu from '@/components/NavigationMenu.vue'
 import { uploadImage } from '@/api/images'
 import {
   getOrderVietBills,

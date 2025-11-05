@@ -1,5 +1,8 @@
 <template>
   <div class="order-viet">
+    <!-- Navigation Menu -->
+    <NavigationMenu active-menu-item="order-viet" />
+
     <el-card class="header-card">
       <h1>Xử Lý Hàng Việt</h1>
 
@@ -62,17 +65,52 @@
         </el-form-item>
 
         <el-form-item v-if="selectedBillCode">
-          <el-button
-            type="success"
-            :disabled="selectedOrders.length === 0"
-            :loading="processing"
-            @click="processOrders"
-          >
-            Xử Lý {{ selectedOrders.length }} Đơn Hàng
-          </el-button>
-          <span style="margin-left: 10px; color: #909399">
-            (Cập nhật status thành "HÀNG VỀ" và thêm mã bill)
-          </span>
+          <div style="width: 100%">
+            <!-- Quantity Warning -->
+            <el-alert
+              v-if="selectedOrders.length > 0 && !quantitiesMatch"
+              type="warning"
+              :closable="false"
+              style="margin-bottom: 15px"
+            >
+              <template #title>
+                <strong>⚠️ Cảnh báo số lượng không khớp!</strong>
+              </template>
+              <div style="margin-top: 8px">
+                Tổng số lượng đơn hàng đã chọn: <strong>{{ selectedOrdersQuantity }}</strong>
+                <br />
+                Số lượng của Bill {{ selectedBillCode }}: <strong>{{ selectedBill?.quantity }}</strong>
+                <br />
+                <span style="color: #e6a23c">
+                  Vui lòng kiểm tra lại để tránh chọn sai đơn hàng!
+                </span>
+              </div>
+            </el-alert>
+
+            <!-- Success Info -->
+            <el-alert
+              v-if="selectedOrders.length > 0 && quantitiesMatch"
+              type="success"
+              :closable="false"
+              style="margin-bottom: 15px"
+            >
+              <div>
+                ✓ Số lượng khớp: <strong>{{ selectedOrdersQuantity }}</strong> đơn hàng
+              </div>
+            </el-alert>
+
+            <el-button
+              type="success"
+              :disabled="selectedOrders.length === 0"
+              :loading="processing"
+              @click="processOrders"
+            >
+              Xử Lý {{ selectedOrders.length }} Đơn Hàng
+            </el-button>
+            <span style="margin-left: 10px; color: #909399">
+              (Cập nhật status thành "HÀNG VỀ" và thêm mã bill)
+            </span>
+          </div>
         </el-form-item>
       </el-form>
     </el-card>
@@ -165,6 +203,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import NavigationMenu from '@/components/NavigationMenu.vue'
 import {
   getHangVietOrders,
   processHangVietOrders,
@@ -264,6 +303,22 @@ function isSelectable() {
   return !!selectedBillCode.value
 }
 
+// Calculate total quantity of selected orders
+const selectedOrdersQuantity = computed(() => {
+  return selectedOrders.value.reduce((sum, order) => sum + parseInt(order.quantity), 0)
+})
+
+// Get selected bill details
+const selectedBill = computed(() => {
+  return availableBills.value.find((bill) => bill.billCode === selectedBillCode.value)
+})
+
+// Check if quantities match
+const quantitiesMatch = computed(() => {
+  if (!selectedBill.value || selectedOrders.value.length === 0) return true
+  return selectedOrdersQuantity.value === parseInt(selectedBill.value.quantity)
+})
+
 // Process selected orders
 async function processOrders() {
   if (!selectedBillCode.value) {
@@ -277,15 +332,20 @@ async function processOrders() {
   }
 
   try {
+    // Show warning if quantities don't match
+    const quantityWarning = !quantitiesMatch.value
+      ? `\n\n⚠️ CẢNH BÁO: Số lượng không khớp!\nĐã chọn: ${selectedOrdersQuantity.value} | Bill: ${selectedBill.value?.quantity}`
+      : ''
+
     await ElMessageBox.confirm(
       `Bạn có chắc chắn muốn xử lý ${selectedOrders.value.length} đơn hàng?
       - Cập nhật status thành "HÀNG VỀ"
-      - Thêm mã bill: ${selectedBillCode.value}`,
+      - Thêm mã bill: ${selectedBillCode.value}${quantityWarning}`,
       'Xác Nhận Xử Lý',
       {
         confirmButtonText: 'Xác Nhận',
         cancelButtonText: 'Huỷ',
-        type: 'warning',
+        type: quantitiesMatch.value ? 'warning' : 'error',
       },
     )
 

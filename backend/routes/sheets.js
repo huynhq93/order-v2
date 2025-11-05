@@ -1651,7 +1651,7 @@ router.post('/ordviet/process-orders', async (req, res) => {
     // Group orders by month and sheetType
     const ordersBySheet = {}
     orders.forEach((order) => {
-      const key = `${order.month}_${order.sheetType}`
+      const key = `${order.month}-${order.sheetType}`
       if (!ordersBySheet[key]) {
         ordersBySheet[key] = []
       }
@@ -1660,12 +1660,12 @@ router.post('/ordviet/process-orders', async (req, res) => {
 
     // Update each sheet
     for (const key of Object.keys(ordersBySheet)) {
-      const [monthYear, sheetType] = key.split('_CTV_ORDERS')
+      const [monthYear, sheetType] = key.split('-')
       const actualSheetType = key.includes('CTV_ORDERS') ? 'CTV_ORDERS' : 'ORDERS'
       const [month, year] = monthYear.split('/')
 
       const date = new Date(Number(year), Number(month) - 1, 1)
-      const sheetName = getMonthlySheetName(SHEET_TYPES[actualSheetType], date)
+      const sheetName = getMonthlySheetName(SHEET_TYPES[sheetType], date)
 
       const sheetOrders = ordersBySheet[key]
 
@@ -1687,7 +1687,7 @@ router.post('/ordviet/process-orders', async (req, res) => {
           // Add bill code to note column
           const currentNoteResponse = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: `${sheetName}!L${actualRow}`,
+            range: `${sheetName}!N${actualRow}`,
           })
 
           const currentNote = currentNoteResponse.data.values?.[0]?.[0] || ''
@@ -1695,7 +1695,7 @@ router.post('/ordviet/process-orders', async (req, res) => {
 
           await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `${sheetName}!L${actualRow}`,
+            range: `${sheetName}!N${actualRow}`,
             valueInputOption: 'USER_ENTERED',
             resource: {
               values: [[newNote]],
