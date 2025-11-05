@@ -122,7 +122,11 @@
             </div>
           </div>
         </template>
-        <el-table-column prop="date" label="DATE"  width="70" />
+        <el-table-column label="DATE" width="80">
+          <template #default="{ row }">
+            <span>{{ extractDayFromDate(row.date) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="customerName" label="TÊN KH" min-width="170">
           <template #default="{ row }">
             <span class="customer-name-cell cursor-pointer">{{ row.customerName }}</span>
@@ -434,6 +438,31 @@ const uniqueCustomerNames = computed(() => {
 const orders = computed(() => store.orders)
 const loading = computed(() => store.loading || isFiltering.value || pageChanging.value)
 const hasError = computed(() => !!store.error)
+
+// Function to extract day and month from date string (format: d/M)
+const extractDayFromDate = (dateStr: string) => {
+  if (!dateStr) return ''
+  
+  // Handle DD/MM/YYYY or DD/MM format
+  if (typeof dateStr === 'string' && dateStr.includes('/')) {
+    const parts = dateStr.split('/')
+    if (parts.length >= 2) {
+      const day = parseInt(parts[0]).toString() // Remove leading zero
+      const month = parseInt(parts[1]).toString() // Remove leading zero
+      return `${day}/${month}` // Return day/month format
+    }
+  }
+  
+  // Handle other formats - try to parse as date
+  const date = new Date(dateStr)
+  if (!isNaN(date.getTime())) {
+    const day = date.getDate()
+    const month = date.getMonth() + 1
+    return `${day}/${month}`
+  }
+  
+  return dateStr // Return original if can't parse
+}
 
 // Fast pre-filtered orders (without pagination)
 const preFilteredOrders = computed(() => {

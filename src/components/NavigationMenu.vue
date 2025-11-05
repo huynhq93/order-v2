@@ -21,6 +21,14 @@
         <el-icon><TrendCharts /></el-icon>
         <span>Thống kê</span>
       </el-menu-item>
+      <el-menu-item v-if="user?.role === 'admin'" index="order-viet-admin">
+        <el-icon><Memo /></el-icon>
+        <span>Quản lý Bill HV</span>
+      </el-menu-item>
+      <el-menu-item index="order-viet">
+        <el-icon><Box /></el-icon>
+        <span>Xử lý HV</span>
+      </el-menu-item>
       
       <!-- User menu on the right -->
       <div class="user-menu">
@@ -51,7 +59,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Management, Document, DocumentAdd, Van, TrendCharts, User, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
+import { Management, Document, DocumentAdd, Van, TrendCharts, User, ArrowDown, SwitchButton, Memo, Box } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 
 interface Props {
@@ -74,6 +82,10 @@ const handleMenuSelect = (index: string) => {
     router.push('/order-china')
   } else if (index === 'revenue') {
     router.push('/revenue')
+  } else if (index === 'order-viet-admin') {
+    router.push('/order-viet-admin')
+  } else if (index === 'order-viet') {
+    router.push('/order-viet')
   } else if (index === 'orders') {
     router.push('/')
   }

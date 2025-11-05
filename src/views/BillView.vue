@@ -139,7 +139,7 @@
         <template #header>
           <div class="bill-header">
             <div class="bill-title">HÓA ĐƠN</div>
-            <el-button type="primary" @click="printBill" icon="Download">Tải hóa đơn</el-button>
+            <el-button type="primary" @click="openBillConfirmationModal" icon="Download">Tải hóa đơn</el-button>
           </div>
         </template>
 
@@ -269,6 +269,58 @@
         <span class="dialog-footer">
           <el-button @click="closeImageModal">Đóng</el-button>
         </span>
+      </template>
+    </el-dialog>
+
+    <!-- Bill Confirmation Modal -->
+    <el-dialog
+      v-model="billConfirmationVisible"
+      title="Xác nhận thông tin hóa đơn"
+      :width="imageModalWidth"
+      @close="closeBillConfirmationModal"
+    >
+      <el-form :model="billConfirmationForm" label-width="120px">
+        <el-form-item label="Tên khách hàng" required>
+          <el-input v-model="billConfirmationForm.customerName" placeholder="Nhập tên khách hàng" />
+        </el-form-item>
+        
+        <el-form-item label="Địa chỉ / SĐT" required>
+          <el-input 
+            v-model="billConfirmationForm.customerContact" 
+            type="textarea"
+            :rows="2"
+            placeholder="Nhập địa chỉ và số điện thoại"
+          />
+        </el-form-item>
+        
+        <!-- <el-form-item label="Phí ship">
+          <el-input-number 
+            v-model="billConfirmationForm.shippingFee"
+            :min="0"
+            :step="1000"
+            :precision="0"
+            controls-position="right"
+            style="width: 100%"
+          />
+        </el-form-item> -->
+        
+        <el-form-item label="Tổng thanh toán">
+          <el-input-number 
+            v-model="billConfirmationForm.totalAmount"
+            :min="0"
+            :step="1000"
+            :precision="0"
+            controls-position="right"
+            style="width: 100%"
+          />
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="closeBillConfirmationModal">Hủy</el-button>
+          <el-button type="primary" @click="confirmAndPrintBill">Tải hóa đơn</el-button>
+        </div>
       </template>
     </el-dialog>
 
@@ -456,6 +508,15 @@ const selectedCustomerForOrders = ref('')
 const selectedStatusForOrders = ref('')
 const customerOrders = ref<Order[]>([])
 
+// Bill confirmation modal state
+const billConfirmationVisible = ref(false)
+const billConfirmationForm = ref({
+  customerName: '',
+  customerContact: '',
+  totalAmount: 0,
+  shippingFee: 0
+})
+
 // Computed for responsive modal width
 const imageModalWidth = computed(() => {
   if (window.innerWidth <= 480) return '95%'
@@ -472,7 +533,7 @@ const canGenerate = computed(() => {
 
 const customerContact = computed(() => {
   if (billData.value.length > 0) {
-    return billData.value[0].contactInfo || 'Thông tin liên hệ khách hàng'
+    return billData.value[billData.value.length - 1].contactInfo || 'Thông tin liên hệ khách hàng'
   }
   return 'Thông tin liên hệ khách hàng'
 })
@@ -482,12 +543,11 @@ const totalShipping = computed(() => {
 })
 
 const totalAmount = computed(() => {
-  return (
-    billData.value.reduce((sum, order) => {
-      const amount = parseFloat(order.total?.replace(/[^\d]/g, '') || '0')
-      return sum + amount
-    }, 0) + totalShipping.value
-  )
+  const orderTotal = billData.value.reduce((sum, order) => {
+    const amount = parseFloat(order.total?.replace(/[^\d]/g, '') || '0')
+    return sum + amount
+  }, 0)
+  return orderTotal + totalShipping.value
 })
 
 // Methods
@@ -566,7 +626,7 @@ const formatCurrency = (amount: number | undefined) => {
 const printBill = () => {
   if (billData.value.length === 0) return
 
-  // Mở template HTML trong cửa sổ mới
+  // Sử dụng dữ liệu từ modal confirmation
   const printWindow = window.open('/bill-template.html', '_blank', 'width=900,height=650')
   
   if (!printWindow) {
@@ -576,11 +636,11 @@ const printBill = () => {
 
   // Đợi template load xong rồi gửi dữ liệu
   printWindow.onload = () => {
-    // Gửi thông tin tới template
+    // Gửi thông tin tới template (sử dụng thông tin từ modal)
     const billData = {
-      customerName: billForm.value.customerName.toUpperCase(),
-      customerPhone: customerContact.value,
-      totalAmount: formatCurrency(totalAmount.value)
+      customerName: billConfirmationForm.value.customerName.toUpperCase(),
+      customerPhone: billConfirmationForm.value.customerContact,
+      totalAmount: formatCurrency(billConfirmationForm.value.totalAmount)
     }
 
     // Cập nhật thông tin trong template
@@ -595,7 +655,7 @@ const printBill = () => {
         type: 'DOWNLOAD_AS_IMAGE',
         data: billData
       }, '*')
-    }, 1500)
+    }, 1000)
   }
 
   // Listen for download completion message
@@ -607,6 +667,45 @@ const printBill = () => {
   }
   
   window.addEventListener('message', handleMessage)
+}
+
+// Bill confirmation modal methods
+const openBillConfirmationModal = () => {
+  if (billData.value.length === 0) {
+    ElMessage.warning('Chưa có dữ liệu hóa đơn để in')
+    return
+  }
+
+  // Thiết lập giá trị mặc định
+  billConfirmationForm.value = {
+    customerName: billForm.value.customerName,
+    customerContact: customerContact.value,
+    totalAmount: totalAmount.value,
+    shippingFee: billForm.value.shippingFee
+  }
+  
+  billConfirmationVisible.value = true
+}
+
+const closeBillConfirmationModal = () => {
+  billConfirmationVisible.value = false
+}
+
+const confirmAndPrintBill = () => {
+  // Validate required fields
+  if (!billConfirmationForm.value.customerName.trim()) {
+    ElMessage.error('Vui lòng nhập tên khách hàng')
+    return
+  }
+  
+  if (!billConfirmationForm.value.customerContact.trim()) {
+    ElMessage.error('Vui lòng nhập địa chỉ/SĐT')
+    return
+  }
+  
+  // Close modal and print
+  billConfirmationVisible.value = false
+  printBill()
 }
 
 const handleStatusChange = async (order: Order, checked: boolean) => {
@@ -1140,6 +1239,13 @@ const closeCustomerOrdersModal = () => {
 .customer-orders-content {
   max-height: 60vh;
   overflow-y: auto;
+}
+
+/* Bill confirmation modal */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .orders-grid {
