@@ -457,4 +457,199 @@ onMounted(() => {
 :deep(.el-select-dropdown__item img) {
   flex-shrink: 0;
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .order-viet {
+    padding: 12px;
+  }
+
+  .header-card h1,
+  .action-card h2,
+  .table-card h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+
+  .month-selector {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .month-selector :deep(.el-select) {
+    width: 100% !important;
+  }
+
+  .month-selector :deep(.el-button) {
+    width: 100%;
+  }
+
+  /* Form adjustments */
+  :deep(.el-form) {
+    font-size: 14px;
+  }
+
+  :deep(.el-form-item__label) {
+    font-size: 13px;
+    padding-right: 8px;
+  }
+
+  :deep(.el-select) {
+    width: 100% !important;
+  }
+
+  /* Alert adjustments */
+  :deep(.el-alert) {
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  :deep(.el-alert__title) {
+    font-size: 14px;
+  }
+
+  /* Bill dropdown image size */
+  :deep(.el-select-dropdown__item) {
+    min-height: 50px !important;
+    padding: 6px 12px !important;
+  }
+
+  :deep(.el-select-dropdown__item img) {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  :deep(.el-select-dropdown__item .el-option__label) {
+    font-size: 13px;
+  }
+
+  /* Table adjustments */
+  :deep(.el-table) {
+    font-size: 12px;
+  }
+
+  :deep(.el-table th),
+  :deep(.el-table td) {
+    padding: 8px 4px;
+  }
+
+  :deep(.el-table .cell) {
+    padding: 0 4px;
+    word-break: break-word;
+  }
+
+  :deep(.el-image) {
+    width: 50px !important;
+    height: 50px !important;
+  }
+
+  :deep(.el-tag) {
+    font-size: 11px;
+    padding: 0 5px;
+    height: 20px;
+    line-height: 20px;
+  }
+
+  :deep(.el-link) {
+    font-size: 11px !important;
+  }
+
+  :deep(.el-button) {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .empty-state {
+    padding: 30px 20px;
+  }
+
+  .empty-state p:first-child {
+    font-size: 14px;
+  }
+
+  .empty-state p {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .order-viet {
+    padding: 8px;
+  }
+
+  .header-card,
+  .action-card,
+  .table-card {
+    margin-bottom: 12px;
+  }
+
+  .header-card h1,
+  .action-card h2,
+  .table-card h2 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+
+  :deep(.el-form-item__label) {
+    font-size: 12px;
+    min-width: 80px !important;
+  }
+
+  /* Make button text smaller */
+  :deep(.el-button span) {
+    font-size: 12px;
+  }
+
+  /* Alert adjustments */
+  :deep(.el-alert) {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  :deep(.el-alert__title) {
+    font-size: 13px;
+  }
+
+  /* Bill dropdown */
+  :deep(.el-select-dropdown__item) {
+    min-height: 45px !important;
+    padding: 5px 10px !important;
+  }
+
+  :deep(.el-select-dropdown__item img) {
+    width: 25px !important;
+    height: 25px !important;
+  }
+
+  :deep(.el-select-dropdown__item .el-option__label) {
+    font-size: 12px;
+  }
+
+  /* Table adjustments */
+  :deep(.el-table) {
+    font-size: 11px;
+  }
+
+  :deep(.el-table th),
+  :deep(.el-table td) {
+    padding: 6px 2px;
+  }
+
+  :deep(.el-image) {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  /* Hide less critical columns on very small screens */
+  :deep(.el-table__column:nth-child(9)),  /* Nguồn column */
+  :deep(.el-table__column:nth-child(10))  /* Tháng column */
+  {
+    display: none;
+  }
+
+  .empty-state {
+    padding: 20px 15px;
+  }
+}
 </style>

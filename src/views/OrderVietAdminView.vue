@@ -526,4 +526,135 @@ onMounted(() => {
   font-size: 20px;
   color: #303133;
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .order-viet-admin {
+    padding: 12px;
+  }
+
+  .header-card h1 {
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+
+  .form-card h2,
+  .table-card h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+
+  .month-selector {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .month-selector :deep(.el-date-editor) {
+    width: 100% !important;
+  }
+
+  /* Form adjustments */
+  :deep(.el-form-item__label) {
+    font-size: 14px;
+  }
+
+  .image-preview,
+  .upload-placeholder {
+    width: 150px;
+    height: 150px;
+  }
+
+  :deep(.el-input-number) {
+    width: 100% !important;
+  }
+
+  :deep(.el-select) {
+    width: 100% !important;
+  }
+
+  /* Table adjustments */
+  :deep(.el-table) {
+    font-size: 13px;
+  }
+
+  :deep(.el-table th),
+  :deep(.el-table td) {
+    padding: 8px 4px;
+  }
+
+  :deep(.el-table .cell) {
+    padding: 0 4px;
+    word-break: break-word;
+  }
+
+  :deep(.el-image) {
+    width: 60px !important;
+    height: 60px !important;
+  }
+
+  :deep(.el-tag) {
+    font-size: 11px;
+    padding: 0 6px;
+    height: 22px;
+    line-height: 22px;
+  }
+
+  :deep(.el-button) {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .order-viet-admin {
+    padding: 8px;
+  }
+
+  .header-card,
+  .form-card,
+  .table-card {
+    margin-bottom: 12px;
+  }
+
+  .header-card h1 {
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+
+  .form-card h2,
+  .table-card h2 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+
+  .image-preview,
+  .upload-placeholder {
+    width: 120px;
+    height: 120px;
+  }
+
+  :deep(.el-form-item__label) {
+    font-size: 13px;
+    padding-right: 8px;
+  }
+
+  :deep(.el-table) {
+    font-size: 12px;
+  }
+
+  :deep(.el-table th),
+  :deep(.el-table td) {
+    padding: 6px 2px;
+  }
+
+  :deep(.el-image) {
+    width: 50px !important;
+    height: 50px !important;
+  }
+
+  /* Hide less important columns on very small screens */
+  :deep(.el-table__column--selection) {
+    display: none;
+  }
+}
 </style>
