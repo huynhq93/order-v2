@@ -60,17 +60,21 @@ export const useOrdersStore = defineStore('orders', {
     async addOrder(order: Omit<Order, 'rowIndex'>, customerType: 'customer' | 'ctv' = 'customer') {
       try {
         await addOrder(order, customerType)
-        const rowIndex = this.orders.length;
-        this.orders.push({...order, ...{rowIndex}})
+        const rowIndex = this.orders.length
+        this.orders.push({ ...order, ...{ rowIndex } })
       } catch (err) {
         this.error = err instanceof Error ? err.message : 'Failed to add order'
         throw err
       }
     },
 
-    async deleteOrder(order: Order, customerType: 'customer' | 'ctv' = 'customer') {
+    async deleteOrder(
+      order: Order,
+      selectedDate: { month: number; year: number },
+      customerType: 'customer' | 'ctv' = 'customer',
+    ) {
       try {
-        await deleteOrderAPI(order, customerType)
+        await deleteOrderAPI(order, selectedDate, customerType)
         // Remove from local state
         const index = this.orders.findIndex((o) => o.rowIndex === order.rowIndex)
         if (index !== -1) {
@@ -107,7 +111,7 @@ export const useOrdersStore = defineStore('orders', {
 
         // Update via API
         await updateOrder(updatedOrder, customerType)
-        
+
         // Update local state
         const index = this.orders.findIndex((o) => o.rowIndex === rowIndex)
         if (index !== -1) {
@@ -125,12 +129,12 @@ export const useOrdersStore = defineStore('orders', {
       shippingCode: string,
       status: string,
       selectedDate: { month: number; year: number },
-      customerType: 'customer' | 'ctv'
+      customerType: 'customer' | 'ctv',
     ) {
       try {
         // First ensure we have the latest orders for this sheet type
         await this.fetchOrders(selectedDate, customerType)
-        
+
         const order = this.orders.find((o) => o.rowIndex === rowIndex)
         if (!order) {
           // Log more details for debugging
@@ -138,9 +142,14 @@ export const useOrdersStore = defineStore('orders', {
             rowIndex,
             customerType,
             selectedDate,
-            availableOrders: this.orders.map(o => ({ rowIndex: o.rowIndex, customerName: o.customerName }))
+            availableOrders: this.orders.map((o) => ({
+              rowIndex: o.rowIndex,
+              customerName: o.customerName,
+            })),
           })
-          throw new Error(`Order not found: rowIndex ${rowIndex} in ${customerType} sheet for ${selectedDate.month}/${selectedDate.year}`)
+          throw new Error(
+            `Order not found: rowIndex ${rowIndex} in ${customerType} sheet for ${selectedDate.month}/${selectedDate.year}`,
+          )
         }
 
         // Create updated order with management code, shipping code and new status
@@ -155,7 +164,7 @@ export const useOrdersStore = defineStore('orders', {
 
         // Update via API
         await updateOrder(updatedOrder, customerType)
-        
+
         // Update local state
         const index = this.orders.findIndex((o) => o.rowIndex === rowIndex)
         if (index !== -1) {

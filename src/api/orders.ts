@@ -59,12 +59,14 @@ export const addOrder = async (
 
 export const deleteOrder = async (
   order: Order,
+  selectedDate: { month: number; year: number },
   customerType: 'customer' | 'ctv' = 'customer',
 ) => {
   const sheetType = customerType === 'customer' ? 'ORDERS' : 'CTV_ORDERS'
   const response = await api.delete(`/sheets/${order.rowIndex}`, {
     params: {
-      month: order.month,
+      month: selectedDate.month,
+      year: selectedDate.year,
       sheetType,
     },
   })

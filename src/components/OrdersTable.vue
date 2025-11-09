@@ -622,7 +622,7 @@ const handleOrderUpdated = (updatedOrder: Order) => {
 
 const handleOrderDeleted = async (orderToDelete: Order) => {
   try {
-    await store.deleteOrder(orderToDelete, customerType.value)
+    await store.deleteOrder(orderToDelete, props.selectedDate, customerType.value)
     showDetailsDialog.value = false
     ElMessage.success('Đã xóa đơn hàng thành công')
   } catch (error) {
