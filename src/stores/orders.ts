@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import type { Order } from '@/types/order'
-import { getOrders, updateOrderStatus, updateOrder, addOrder } from '@/api/orders'
+import { getOrders, updateOrderStatus, updateOrder, addOrder, deleteOrder as deleteOrderAPI } from '@/api/orders'
 
 export const useOrdersStore = defineStore('orders', {
   state: () => ({
@@ -64,6 +64,20 @@ export const useOrdersStore = defineStore('orders', {
         this.orders.push({...order, ...{rowIndex}})
       } catch (err) {
         this.error = err instanceof Error ? err.message : 'Failed to add order'
+        throw err
+      }
+    },
+
+    async deleteOrder(order: Order, customerType: 'customer' | 'ctv' = 'customer') {
+      try {
+        await deleteOrderAPI(order, customerType)
+        // Remove from local state
+        const index = this.orders.findIndex((o) => o.rowIndex === order.rowIndex)
+        if (index !== -1) {
+          this.orders.splice(index, 1)
+        }
+      } catch (err) {
+        this.error = err instanceof Error ? err.message : 'Failed to delete order'
         throw err
       }
     },

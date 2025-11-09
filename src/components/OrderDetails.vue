@@ -324,9 +324,20 @@
           {{ saving ? 'Đang lưu...' : 'Lưu thay đổi' }}
         </el-button>
       </template>
-      <el-button v-else type="primary" @click="startEdit" size="large">
-        Chỉnh sửa đơn hàng
-      </el-button>
+      <template v-else>
+        <el-button 
+          type="danger" 
+          @click="deleteOrder" 
+          size="large"
+          :loading="deleting"
+          :icon="Delete"
+        >
+          {{ deleting ? 'Đang xóa...' : 'Xóa đơn hàng' }}
+        </el-button>
+        <el-button type="primary" @click="startEdit" size="large">
+          Chỉnh sửa đơn hàng
+        </el-button>
+      </template>
     </div>
 
     <!-- Products Modal -->
@@ -392,7 +403,7 @@ import { formatCurrency } from '@/utils/format'
 import type { Order } from '@/types/order'
 import type { Customer } from '@/types/customer'
 import type { Product } from '@/types/sheet'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { uploadImage } from '@/api/images'
 import { productsAPI } from '@/api/products'
 import { getAllCustomers, clearCustomersCache } from '@/api/customers'
@@ -401,7 +412,8 @@ import {
   Picture,
   Loading,
   Search,
-  Box
+  Box,
+  Delete
 } from '@element-plus/icons-vue'
 
 const props = defineProps<{
@@ -411,11 +423,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update', order: Order): void
+  (e: 'delete', order: Order): void
   (e: 'close'): void
 }>()
 
 const isEditing = ref(false)
 const saving = ref(false)
+const deleting = ref(false)
 const isSearchingProduct = ref(false)
 
 // Customer dropdown state
@@ -873,6 +887,31 @@ const saveChanges = async () => {
     ElMessage.error('Có lỗi xảy ra khi cập nhật')
   } finally {
     saving.value = false
+  }
+}
+
+const deleteOrder = async () => {
+  try {
+    await ElMessageBox.confirm(
+      'Bạn có chắc chắn muốn xóa đơn hàng này? Hành động này không thể hoàn tác.',
+      'Xác nhận xóa',
+      {
+        confirmButtonText: 'Xóa',
+        cancelButtonText: 'Hủy',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger',
+      }
+    )
+    
+    deleting.value = true
+    emit('delete', props.order)
+  } catch (error) {
+    // User cancelled - do nothing
+    if (error !== 'cancel') {
+      console.error('Error in delete confirmation:', error)
+    }
+  } finally {
+    deleting.value = false
   }
 }
 

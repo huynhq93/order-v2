@@ -172,6 +172,7 @@
             >
               <el-option label="NHẬN ĐƠN" value="NHẬN ĐƠN" />
               <el-option label="HÀNG VIỆT" value="HÀNG VIỆT" />
+              <el-option label="HÀNG VỀ" value="HÀNG VỀ" />
               <el-option label="THÀNH CÔNG" value="THÀNH CÔNG" />
               <el-option label="HUỶ ĐƠN" value="HUỶ ĐƠN" />
               <el-option label="HOÀN HÀNG" value="HOÀN HÀNG" />
@@ -258,6 +259,7 @@
         :order="selectedOrder"
         :selected-date="selectedDate"
         @update="handleOrderUpdated"
+        @delete="handleOrderDeleted"
       />
     </el-dialog>
   </el-card>
@@ -616,6 +618,17 @@ const handleOrderUpdated = (updatedOrder: Order) => {
   store.updateOrder(updatedOrder, customerType.value)
   showDetailsDialog.value = false
   ElMessage.success('Đã cập nhật thông tin đơn hàng')
+}
+
+const handleOrderDeleted = async (orderToDelete: Order) => {
+  try {
+    await store.deleteOrder(orderToDelete, customerType.value)
+    showDetailsDialog.value = false
+    ElMessage.success('Đã xóa đơn hàng thành công')
+  } catch (error) {
+    console.error('Error deleting order:', error)
+    ElMessage.error('Lỗi khi xóa đơn hàng')
+  }
 }
 
 const handleDetailsDialogClose = () => {

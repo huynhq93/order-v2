@@ -139,6 +139,18 @@
                   </el-button>
                 </div>
                 
+                <!-- Add Order Button -->
+                <div class="shipping-actions">
+                  <el-button
+                    type="success"
+                    @click="openAddOrderModal(managementGroup.managementCode, shippingCode)"
+                    :icon="Plus"
+                    size="default"
+                  >
+                    Thêm đơn hàng
+                  </el-button>
+                </div>
+                
                 <!-- Status Update for groups with shipping code -->
                 <div class="shipping-actions" v-if="shippingCode !== 'no-shipping'">
                   <el-select
@@ -175,6 +187,20 @@
                   type="selection" 
                   width="55" 
                 />
+                
+                <!-- Delete action column -->
+                <el-table-column label="" width="60" align="center">
+                  <template #default="{ row }">
+                    <el-button
+                      type="danger"
+                      :icon="Delete"
+                      size="small"
+                      circle
+                      @click="handleRemoveOrderFromGroup(row)"
+                      title="Xóa khỏi nhóm"
+                    />
+                  </template>
+                </el-table-column>
                 
                 <el-table-column prop="date" label="Ngày" width="80" />
                 
@@ -241,6 +267,122 @@
       </div>
     </el-card>
 
+    <!-- Add Order Modal -->
+    <el-dialog
+      v-model="addOrderModalVisible"
+      title="Thêm đơn hàng vào nhóm"
+      width="80%"
+      :close-on-click-modal="false"
+    >
+      <div class="add-order-modal">
+        <div class="modal-header-info">
+          <el-alert type="info" :closable="false">
+            <template #title>
+              <div class="alert-content">
+                <div><strong>Mã quản lý:</strong> {{ currentManagementCode || 'Chưa có' }}</div>
+                <div><strong>Mã vận đơn:</strong> {{ currentShippingCode !== 'no-shipping' ? currentShippingCode : 'Chưa có' }}</div>
+              </div>
+            </template>
+          </el-alert>
+        </div>
+
+        <!-- Customer Filter -->
+        <div class="modal-filter">
+          <el-select
+            v-model="selectedCustomerFilter"
+            multiple
+            filterable
+            collapse-tags
+            collapse-tags-tooltip
+            placeholder="Lọc theo tên khách hàng"
+            style="width: 100%"
+            clearable
+          >
+            <el-option
+              v-for="name in uniqueCustomerNames"
+              :key="name"
+              :label="name"
+              :value="name"
+            />
+          </el-select>
+        </div>
+
+        <el-table
+          :data="filteredAvailableOrders"
+          row-key="uniqueId"
+          @selection-change="handleAvailableOrdersSelectionChange"
+          v-loading="loadingAvailableOrders"
+        >
+          <el-table-column type="selection" width="55" />
+          
+          <el-table-column prop="date" label="Ngày" width="80" />
+          
+          <el-table-column label="Sheet" width="80">
+            <template #default="{ row }">
+              <el-tag :type="row.sheetType === 'customer' ? 'primary' : 'warning'" size="small">
+                {{ row.sheetType === 'customer' ? 'Bán hàng' : 'CTV' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="customerName" label="Khách hàng" min-width="150">
+            <template #default="{ row }">
+              <div class="customer-info">
+                <div class="customer-name">{{ row.customerName }}</div>
+                <div class="customer-contact" v-if="row.contactInfo">
+                  {{ row.contactInfo.substring(0, 20) }}{{ row.contactInfo.length > 20 ? '...' : '' }}
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+          
+          <el-table-column label="Sản phẩm" min-width="200">
+            <template #default="{ row }">
+              <div class="product-info">
+                <el-image
+                  v-if="row.productImage"
+                  :src="row.productImage"
+                  class="product-image"
+                  fit="cover"
+                />
+                <div class="product-details">
+                  <div class="product-name">{{ row.productName }}</div>
+                  <div class="product-variant">
+                    {{ row.color }} | {{ row.size }} | SL: {{ row.quantity }}
+                  </div>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="total" label="Tổng tiền" width="120">
+            <template #default="{ row }">
+              <span class="price">{{ formatCurrency(row.total) }}</span>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="status" label="Trạng thái" width="150">
+            <template #default="{ row }">
+              <el-tag :type="getStatusType(row.status)">
+                {{ row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <template #footer>
+        <el-button @click="addOrderModalVisible = false">Hủy</el-button>
+        <el-button
+          type="primary"
+          @click="handleAddOrders"
+          :disabled="selectedAvailableOrders.length === 0"
+          :loading="updating"
+        >
+          Thêm {{ selectedAvailableOrders.length }} đơn hàng
+        </el-button>
+      </template>
+    </el-dialog>
 
   </div>
 </template>
@@ -250,14 +392,16 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useOrdersStore } from '@/stores/orders'
 import { formatCurrency } from '@/utils/format'
 import type { Order } from '@/types/order'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Refresh, 
   Van,
   Box,
   Document,
   Money,
-  Clock
+  Clock,
+  Plus,
+  Delete
 } from '@element-plus/icons-vue'
 import { ORDER_STATUSES, getOrderStatusType } from '@/constants/orderStatus'
 
@@ -293,6 +437,15 @@ const allOrders = ref<ExtendedOrder[]>([])
 const shippingGroupSelections = ref<Record<string, ExtendedOrder[]>>({})
 const shippingGroupCodes = ref<Record<string, string>>({})
 const shippingGroupStatuses = ref<Record<string, string>>({})
+
+// Add Order Modal
+const addOrderModalVisible = ref(false)
+const currentManagementCode = ref<string | null>(null)
+const currentShippingCode = ref<string>('')
+const availableOrders = ref<ExtendedOrder[]>([])
+const selectedAvailableOrders = ref<ExtendedOrder[]>([])
+const loadingAvailableOrders = ref(false)
+const selectedCustomerFilter = ref<string[]>([]) // Customer name filter
 
 // Computed - Group orders by management code only
 const groupedOrdersByManagement = computed(() => {
@@ -352,6 +505,22 @@ const groupedOrdersByManagement = computed(() => {
   })
   
   return sortedGroups
+})
+
+// Computed - Get unique customer names from available orders
+const uniqueCustomerNames = computed(() => {
+  const names = new Set(availableOrders.value.map(order => order.customerName))
+  return Array.from(names).sort()
+})
+
+// Computed - Filter available orders by selected customers
+const filteredAvailableOrders = computed(() => {
+  if (selectedCustomerFilter.value.length === 0) {
+    return availableOrders.value
+  }
+  return availableOrders.value.filter(order => 
+    selectedCustomerFilter.value.includes(order.customerName)
+  )
 })
 
 // Methods
@@ -575,6 +744,134 @@ const getShippingStatusText = (orders: ExtendedOrder[]) => {
   if (statuses.includes(ORDER_STATUSES.SALES.THANH_CONG)) return 'Hoàn thành'
   if (statuses.includes(ORDER_STATUSES.SALES.DANG_GIAO)) return 'Đang giao'
   return 'Chờ xử lý'
+}
+
+// Open Add Order Modal
+const openAddOrderModal = async (managementCode: string | null, shippingCode: string) => {
+  currentManagementCode.value = managementCode
+  currentShippingCode.value = shippingCode
+  addOrderModalVisible.value = true
+  selectedAvailableOrders.value = []
+  selectedCustomerFilter.value = [] // Reset customer filter
+  
+  await loadAvailableOrders()
+}
+
+// Load available orders (status = NHAN_DON)
+const loadAvailableOrders = async () => {
+  loadingAvailableOrders.value = true
+  try {
+    const tempOrders: ExtendedOrder[] = []
+    
+    // Fetch orders from selected sheets with NHAN_DON status
+    for (const sheetType of selectedSheets.value) {
+      await store.fetchOrders(props.selectedDate, sheetType as 'customer' | 'ctv')
+      
+      const ordersWithSheetType = store.orders
+        .filter(order => order.status === ORDER_STATUSES.SALES.NHAN_DON)
+        .map(order => ({
+          ...order,
+          sheetType,
+          uniqueId: `${sheetType}-${order.rowIndex}`,
+          managementCode: order.orderCode
+        })) as ExtendedOrder[]
+      
+      tempOrders.push(...ordersWithSheetType)
+    }
+    
+    availableOrders.value = tempOrders
+    
+  } catch (error) {
+    console.error('Error loading available orders:', error)
+    ElMessage.error('Lỗi khi tải danh sách đơn hàng')
+  } finally {
+    loadingAvailableOrders.value = false
+  }
+}
+
+// Handle selection change in available orders table
+const handleAvailableOrdersSelectionChange = (selection: ExtendedOrder[]) => {
+  selectedAvailableOrders.value = selection
+}
+
+// Add selected orders to group
+const handleAddOrders = async () => {
+  if (selectedAvailableOrders.value.length === 0) {
+    ElMessage.warning('Vui lòng chọn ít nhất một đơn hàng')
+    return
+  }
+  
+  updating.value = true
+  try {
+    const managementCode = currentManagementCode.value || ''
+    const shippingCode = currentShippingCode.value !== 'no-shipping' ? currentShippingCode.value : ''
+    
+    // Update each selected order
+    for (const order of selectedAvailableOrders.value) {
+      await store.updateOrderWithShipping(
+        order.rowIndex,
+        managementCode,
+        shippingCode,
+        ORDER_STATUSES.SALES.DA_DAT_HANG,
+        props.selectedDate,
+        order.sheetType as 'customer' | 'ctv'
+      )
+    }
+    
+    ElMessage.success(`Đã thêm ${selectedAvailableOrders.value.length} đơn hàng vào nhóm`)
+    
+    // Close modal and refresh
+    addOrderModalVisible.value = false
+    await refreshData()
+    emit('updated')
+    
+  } catch (error) {
+    console.error('Error adding orders:', error)
+    ElMessage.error('Có lỗi xảy ra khi thêm đơn hàng')
+  } finally {
+    updating.value = false
+  }
+}
+
+// Remove order from group (clear management code and shipping code, set status to NHAN_DON)
+const handleRemoveOrderFromGroup = async (order: ExtendedOrder) => {
+  try {
+    await ElMessageBox.confirm(
+      `Bạn có chắc chắn muốn xóa đơn hàng "${order.customerName}" khỏi nhóm này?`,
+      'Xác nhận xóa',
+      {
+        confirmButtonText: 'Xóa',
+        cancelButtonText: 'Hủy',
+        type: 'warning',
+      }
+    )
+    
+    updating.value = true
+    
+    // Update order: clear management code, shipping code, and set status to NHAN_DON
+    await store.updateOrderWithShipping(
+      order.rowIndex,
+      '', // Clear management code
+      '', // Clear shipping code
+      ORDER_STATUSES.SALES.NHAN_DON,
+      props.selectedDate,
+      order.sheetType as 'customer' | 'ctv'
+    )
+    
+    ElMessage.success('Đã xóa đơn hàng khỏi nhóm')
+    
+    // Refresh data
+    await refreshData()
+    emit('updated')
+    
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Error removing order from group:', error)
+      ElMessage.error('Có lỗi xảy ra khi xóa đơn hàng')
+    }
+  } finally {
+    updating.value = false
+  }
 }
 
 
@@ -1090,6 +1387,28 @@ onMounted(() => {
       font-style: italic;
       margin-top: 8px;
     }
+  }
+}
+
+/* Add Order Modal Styles */
+.add-order-modal {
+  .modal-header-info {
+    margin-bottom: 20px;
+    
+    .alert-content {
+      display: flex;
+      gap: 24px;
+      font-size: 14px;
+      
+      > div {
+        display: flex;
+        gap: 8px;
+      }
+    }
+  }
+  
+  .modal-filter {
+    margin-bottom: 16px;
   }
 }
 

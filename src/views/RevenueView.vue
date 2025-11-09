@@ -124,6 +124,67 @@
       </el-card>
     </div>
 
+    <!-- Order Count Chart for Yearly View -->
+    <div class="order-chart-section" v-if="revenueData && reportType === 'year'">
+      <el-card>
+        <template #header>
+          <div class="chart-header">
+            <span class="chart-title">Số lượng đơn hàng theo tháng - Năm {{ selectedYear }}</span>
+          </div>
+        </template>
+        <div class="order-chart-container">
+          <div class="chart-legend">
+            <div class="legend-item">
+              <div class="legend-color customer-color"></div>
+              <span>Khách hàng</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color ctv-color"></div>
+              <span>CTV</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color total-color"></div>
+              <span>Tổng cộng</span>
+            </div>
+          </div>
+          <div class="order-chart">
+            <div 
+              v-for="detail in revenueData.details" 
+              :key="detail.period"
+              class="chart-bar-group"
+            >
+              <div class="chart-labels">
+                <span class="day-label">T{{ detail.period.split('/')[0] }}</span>
+              </div>
+              <div class="chart-bars">
+                <div 
+                  class="chart-bar customer-bar"
+                  :style="{ height: getBarHeight(detail.customerOrderCount || 0) + '%' }"
+                  :title="`Khách hàng: ${detail.customerOrderCount || 0} đơn`"
+                >
+                  <span class="bar-value" v-if="(detail.customerOrderCount || 0) > 0">{{ detail.customerOrderCount || 0 }}</span>
+                </div>
+                <div 
+                  class="chart-bar ctv-bar"
+                  :style="{ height: getBarHeight(detail.ctvOrderCount || 0) + '%' }"
+                  :title="`CTV: ${detail.ctvOrderCount || 0} đơn`"
+                >
+                  <span class="bar-value" v-if="(detail.ctvOrderCount || 0) > 0">{{ detail.ctvOrderCount || 0 }}</span>
+                </div>
+                <div 
+                  class="chart-bar total-bar"
+                  :style="{ height: getBarHeight(detail.totalOrderCount || 0) + '%' }"
+                  :title="`Tổng: ${detail.totalOrderCount || 0} đơn`"
+                >
+                  <span class="bar-value" v-if="(detail.totalOrderCount || 0) > 0">{{ detail.totalOrderCount || 0 }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-card>
+    </div>
+
     <!-- Order Count Chart for Monthly View -->
     <div class="order-chart-section" v-if="revenueData && reportType === 'month'">
       <el-card>

@@ -17,7 +17,7 @@
         <el-icon><Document /></el-icon>
         <span>Tạo hóa đơn</span>
       </el-menu-item>
-      <el-menu-item index="revenue">
+      <el-menu-item v-if="user?.role === 'admin'" index="revenue">
         <el-icon><TrendCharts /></el-icon>
         <span>Thống kê</span>
       </el-menu-item>

@@ -45,7 +45,7 @@ const router = createRouter({
       path: '/revenue',
       name: 'revenue',
       component: () => import('@/views/RevenueView.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, requiresAdmin: true  },
     },
     {
       path: '/order-viet-admin',

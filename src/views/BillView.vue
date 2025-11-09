@@ -21,6 +21,26 @@
           <el-row :gutter="20">
             <el-col :xs="24" :sm="12">
               <el-form-item label="Tên khách hàng" required>
+                <!-- Status Legend -->
+                <div class="status-legend">
+                  <div class="legend-item">
+                    <el-tag size="small" type="info">0</el-tag>
+                    <span class="legend-text">Nhận đơn</span>
+                  </div>
+                  <div class="legend-item">
+                    <el-tag size="small" type="primary">0</el-tag>
+                    <span class="legend-text">Đã đặt</span>
+                  </div>
+                  <div class="legend-item">
+                    <el-tag size="small" type="success">0</el-tag>
+                    <span class="legend-text">Hàng về</span>
+                  </div>
+                  <div class="legend-item">
+                    <el-tag size="small" type="warning">0</el-tag>
+                    <span class="legend-text">Chờ giao</span>
+                  </div>
+                </div>
+                
                 <div class="customer-name-container">
                   <el-select
                     v-model="billForm.customerName"
@@ -934,6 +954,30 @@ const closeCustomerOrdersModal = () => {
   align-items: center;
 }
 
+/* Status Legend */
+.status-legend {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e4e7ed;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-text {
+  font-size: 12px;
+  color: #606266;
+  font-weight: 500;
+}
+
 .customer-name-input {
   flex: 1;
 }
@@ -1582,6 +1626,21 @@ const closeCustomerOrdersModal = () => {
     font-size: 1rem;
   }
 
+  /* Status legend responsive */
+  .status-legend {
+    gap: 8px;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+  }
+
+  .legend-item {
+    gap: 3px;
+  }
+
+  .legend-text {
+    font-size: 11px;
+  }
+
   .bill-form-section {
     margin-bottom: 24px;
   }
@@ -1863,6 +1922,32 @@ const closeCustomerOrdersModal = () => {
 
   .subtitle {
     font-size: 0.9rem;
+  }
+
+  /* Status legend mobile */
+  .status-legend {
+    gap: 6px;
+    padding: 8px;
+    margin-bottom: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    row-gap: 6px;
+    column-gap: 8px;
+  }
+
+  .legend-item {
+    gap: 4px;
+    justify-content: flex-start;
+  }
+
+  .legend-text {
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .legend-item .el-tag {
+    font-size: 10px;
+    padding: 0 4px;
   }
 
   .bill-form-section {

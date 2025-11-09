@@ -64,6 +64,39 @@
           </el-select>
         </el-form-item>
 
+        <!-- Bill Image Preview -->
+        <el-form-item v-if="selectedBill && selectedBill.imageUrl" label="Hình Ảnh Bill">
+          <div class="bill-image-preview">
+            <el-image
+              :key="selectedBill.billCode"
+              :src="selectedBill.imageUrl"
+              fit="scale-down"
+              style="width: 100%; max-width: 600px; min-height: 300px; cursor: pointer"
+              :preview-src-list="[selectedBill.imageUrl]"
+              :initial-index="0"
+              :z-index="9999"
+              :preview-teleported="true"
+            >
+              <template #placeholder>
+                <div class="image-loading">
+                  <el-icon class="is-loading"><Loading /></el-icon>
+                  <span>Đang tải...</span>
+                </div>
+              </template>
+              <template #error>
+                <div class="image-error">
+                  <el-icon><Picture /></el-icon>
+                  <span>Không thể tải ảnh</span>
+                </div>
+              </template>
+            </el-image>
+            <div class="image-hint">
+              <el-icon><ZoomIn /></el-icon>
+              <span>Nhấp vào ảnh để phóng to xem chi tiết</span>
+            </div>
+          </div>
+        </el-form-item>
+
         <el-form-item v-if="selectedBillCode">
           <div style="width: 100%">
             <!-- Quantity Warning -->
@@ -203,6 +236,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ZoomIn, Picture, Loading } from '@element-plus/icons-vue'
 import NavigationMenu from '@/components/NavigationMenu.vue'
 import {
   getHangVietOrders,
@@ -422,11 +456,91 @@ onMounted(() => {
 .action-card {
   margin-bottom: 20px;
 }
-
 .action-card h2 {
   margin: 0 0 20px 0;
   font-size: 20px;
   color: #303133;
+}
+
+.bill-image-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  border: 1px solid #dcdfe6;
+}
+
+.bill-image-preview :deep(.el-image) {
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+  background: #ffffff;
+}
+
+.bill-image-preview :deep(.el-image:hover) {
+  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.bill-image-preview :deep(.el-image__inner) {
+  object-fit: scale-down;
+}
+
+.image-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 300px;
+  color: #909399;
+}
+
+.image-loading .el-icon {
+  font-size: 32px;
+}
+
+.image-loading .is-loading {
+  animation: rotating 2s linear infinite;
+}
+
+@keyframes rotating {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.image-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #909399;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.image-hint .el-icon {
+  font-size: 16px;
+}
+
+.image-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 200px;
+  color: #909399;
+}
+
+.image-error .el-icon {
+  font-size: 48px;
 }
 
 .table-card h2 {
@@ -469,6 +583,19 @@ onMounted(() => {
   .table-card h2 {
     font-size: 18px;
     margin-bottom: 16px;
+  }
+
+  /* Bill image preview */
+  .bill-image-preview {
+    padding: 10px;
+  }
+
+  .bill-image-preview :deep(.el-image) {
+    max-width: 100% !important;
+  }
+
+  .image-hint {
+    font-size: 12px;
   }
 
   .month-selector {

@@ -55,4 +55,18 @@ export const addOrder = async (
   const sheetType = customerType === 'customer' ? 'ORDERS' : 'CTV_ORDERS'
   const response = await api.post(`/sheets?type=${sheetType}`, order)
   return response.data
+}
+
+export const deleteOrder = async (
+  order: Order,
+  customerType: 'customer' | 'ctv' = 'customer',
+) => {
+  const sheetType = customerType === 'customer' ? 'ORDERS' : 'CTV_ORDERS'
+  const response = await api.delete(`/sheets/${order.rowIndex}`, {
+    params: {
+      month: order.month,
+      sheetType,
+    },
+  })
+  return response.data
 } 
