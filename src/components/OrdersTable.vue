@@ -171,8 +171,10 @@
               :class="getStatusColor(row.status)"
             >
               <el-option label="NHẬN ĐƠN" value="NHẬN ĐƠN" />
-              <el-option label="HÀNG VIỆT" value="HÀNG VIỆT" />
+              <el-option label="ĐÃ ĐẶT HÀNG" value="ĐÃ ĐẶT HÀNG" />
+              <el-option label="ĐANG CHỜ GIAO" value="ĐANG CHỜ GIAO" />
               <el-option label="HÀNG VỀ" value="HÀNG VỀ" />
+              <el-option label="ĐANG GIAO" value="ĐANG GIAO" />
               <el-option label="THÀNH CÔNG" value="THÀNH CÔNG" />
               <el-option label="HUỶ ĐƠN" value="HUỶ ĐƠN" />
               <el-option label="HOÀN HÀNG" value="HOÀN HÀNG" />
