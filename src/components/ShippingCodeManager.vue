@@ -275,39 +275,58 @@
       :close-on-click-modal="false"
     >
       <div class="add-order-modal">
-        <div class="modal-header-info">
-          <el-alert type="info" :closable="false">
-            <template #title>
-              <div class="alert-content">
-                <div><strong>Mã quản lý:</strong> {{ currentManagementCode || 'Chưa có' }}</div>
-                <div><strong>Mã vận đơn:</strong> {{ currentShippingCode !== 'no-shipping' ? currentShippingCode : 'Chưa có' }}</div>
-              </div>
-            </template>
-          </el-alert>
+        <!-- Sticky Header Section -->
+        <div class="modal-sticky-header">
+          <div class="modal-header-info">
+            <el-alert type="info" :closable="false">
+              <template #title>
+                <div class="alert-content">
+                  <div><strong>Mã quản lý:</strong> {{ currentManagementCode || 'Chưa có' }}</div>
+                  <div><strong>Mã vận đơn:</strong> {{ currentShippingCode !== 'no-shipping' ? currentShippingCode : 'Chưa có' }}</div>
+                </div>
+              </template>
+            </el-alert>
+          </div>
+
+          <!-- Customer Filter and Add Button Row -->
+          <div class="modal-filter-actions-row">
+            <div class="modal-filter">
+              <el-select
+                v-model="selectedCustomerFilter"
+                multiple
+                filterable
+                collapse-tags
+                collapse-tags-tooltip
+                placeholder="Lọc theo tên khách hàng"
+                clearable
+                size="default"
+              >
+                <el-option
+                  v-for="name in uniqueCustomerNames"
+                  :key="name"
+                  :label="name"
+                  :value="name"
+                />
+              </el-select>
+            </div>
+
+            <div class="modal-header-actions">
+              <el-button
+                type="primary"
+                @click="handleAddOrders"
+                :disabled="selectedAvailableOrders.length === 0"
+                :loading="updating"
+                size="default"
+              >
+                Thêm {{ selectedAvailableOrders.length }} đơn hàng
+              </el-button>
+            </div>
+          </div>
         </div>
 
-        <!-- Customer Filter -->
-        <div class="modal-filter">
-          <el-select
-            v-model="selectedCustomerFilter"
-            multiple
-            filterable
-            collapse-tags
-            collapse-tags-tooltip
-            placeholder="Lọc theo tên khách hàng"
-            style="width: 100%"
-            clearable
-          >
-            <el-option
-              v-for="name in uniqueCustomerNames"
-              :key="name"
-              :label="name"
-              :value="name"
-            />
-          </el-select>
-        </div>
-
-        <el-table
+        <!-- Scrollable Table Section -->
+        <div class="modal-table-container">
+          <el-table
           :data="filteredAvailableOrders"
           row-key="uniqueId"
           @selection-change="handleAvailableOrdersSelectionChange"
@@ -369,18 +388,11 @@
             </template>
           </el-table-column>
         </el-table>
+        </div>
       </div>
 
       <template #footer>
         <el-button @click="addOrderModalVisible = false">Hủy</el-button>
-        <el-button
-          type="primary"
-          @click="handleAddOrders"
-          :disabled="selectedAvailableOrders.length === 0"
-          :loading="updating"
-        >
-          Thêm {{ selectedAvailableOrders.length }} đơn hàng
-        </el-button>
       </template>
     </el-dialog>
 
@@ -479,8 +491,35 @@ const groupedOrdersByManagement = computed(() => {
     group.subGroups.get(shippingCode)!.push(order)
   })
   
-  // Sort groups: management codes first, then no management code
+  // Sort groups by shipping code status priority
   const sortedGroups = Array.from(groups.values()).sort((a, b) => {
+    // Helper function to determine group priority
+    const getGroupPriority = (group: typeof a) => {
+      const hasNoShipping = group.subGroups.has('no-shipping')
+      const hasShipping = Array.from(group.subGroups.keys()).some(key => key !== 'no-shipping')
+      
+      // Priority 1: Groups with ONLY 'no-shipping' (no shipping code at all)
+      if (hasNoShipping && !hasShipping) return 1
+      
+      // Priority 2: Groups with BOTH 'no-shipping' and shipping codes (partial)
+      if (hasNoShipping && hasShipping) return 2
+      
+      // Priority 3: Groups with ONLY shipping codes (all orders have shipping)
+      if (!hasNoShipping && hasShipping) return 3
+      
+      return 4 // Fallback
+    }
+    
+    const priorityA = getGroupPriority(a)
+    const priorityB = getGroupPriority(b)
+    
+    // Sort by priority first
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB
+    }
+    
+    // Within same priority, sort by management code
+    // Groups without management code come after groups with management code
     if (!a.managementCode && b.managementCode) return 1
     if (a.managementCode && !b.managementCode) return -1
     return (a.managementCode || '').localeCompare(b.managementCode || '')
@@ -1392,8 +1431,19 @@ onMounted(() => {
 
 /* Add Order Modal Styles */
 .add-order-modal {
+  .modal-sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: white;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    border-bottom: 2px solid #e4e7ed;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+  
   .modal-header-info {
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     
     .alert-content {
       display: flex;
@@ -1407,13 +1457,56 @@ onMounted(() => {
     }
   }
   
-  .modal-filter {
-    margin-bottom: 16px;
+  .modal-filter-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    
+    .modal-filter {
+      flex: 1;
+      
+      .el-select {
+        width: 100%;
+      }
+    }
+    
+    .modal-header-actions {
+      flex-shrink: 0;
+      
+      .el-button {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+    }
+  }
+  
+  .modal-table-container {
+    max-height: 60vh;
+    overflow-y: auto;
   }
 }
 
 /* Mobile responsive */
 @media (max-width: 768px) {
+  .add-order-modal {
+    .modal-filter-actions-row {
+      flex-direction: column;
+      gap: 12px;
+      
+      .modal-filter {
+        width: 100%;
+      }
+      
+      .modal-header-actions {
+        width: 100%;
+        
+        .el-button {
+          width: 100%;
+        }
+      }
+    }
+  }
+  
   .shipping-code-manager {
     .header-container {
       .header-row {
