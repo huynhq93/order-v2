@@ -17,6 +17,14 @@
                   Hiển thị đơn hàng đã về
                 </el-checkbox>
               </div>
+              <div class="management-filter">
+                <el-checkbox v-model="showWithShippingCode">
+                  Có mã vận đơn
+                </el-checkbox>
+                <el-checkbox v-model="showWithoutShippingCode">
+                  Không có mã vận đơn
+                </el-checkbox>
+              </div>
               <el-button 
                 type="primary" 
                 @click="refreshData"
@@ -443,6 +451,8 @@ const store = useOrdersStore()
 // Reactive data
 const selectedSheets = ref<string[]>(['customer', 'ctv'])
 const showDeliveredOrders = ref(false)
+const showWithShippingCode = ref(true) // Default: show management codes with shipping
+const showWithoutShippingCode = ref(true) // Default: don't show management codes without shipping
 const loading = ref(false)
 const updating = ref(false)
 const allOrders = ref<ExtendedOrder[]>([])
@@ -470,7 +480,13 @@ const groupedOrdersByManagement = computed(() => {
   // First group by management code
   allOrders.value.forEach(order => {
     const managementCode = order.managementCode || null
-    const key = managementCode || 'no-mgmt'
+    
+    // Skip orders without management code - they should not appear on this page
+    if (!managementCode) {
+      return
+    }
+    
+    const key = managementCode
     
     if (!groups.has(key)) {
       groups.set(key, {
@@ -519,14 +535,45 @@ const groupedOrdersByManagement = computed(() => {
     }
     
     // Within same priority, sort by management code
-    // Groups without management code come after groups with management code
-    if (!a.managementCode && b.managementCode) return 1
-    if (a.managementCode && !b.managementCode) return -1
+    // All groups have management code now (no 'no-mgmt' groups)
     return (a.managementCode || '').localeCompare(b.managementCode || '')
   })
   
+  // Filter groups based on shipping code checkbox filters
+  const filteredGroups = sortedGroups.filter(group => {
+    const hasNoShipping = group.subGroups.has('no-shipping')
+    const hasShipping = Array.from(group.subGroups.keys()).some(key => key !== 'no-shipping')
+    
+    // Group has only no-shipping (no shipping codes at all)
+    const hasOnlyNoShipping = hasNoShipping && !hasShipping
+    // Group has shipping codes (either all or partial)
+    const hasAnyShipping = hasShipping
+    
+    // If both checkboxes are unchecked, show nothing
+    if (!showWithShippingCode.value && !showWithoutShippingCode.value) {
+      return false
+    }
+    
+    // If both checkboxes are checked, show all
+    if (showWithShippingCode.value && showWithoutShippingCode.value) {
+      return true
+    }
+    
+    // If only "with shipping code" is checked
+    if (showWithShippingCode.value && !showWithoutShippingCode.value) {
+      return hasAnyShipping
+    }
+    
+    // If only "without shipping code" is checked
+    if (!showWithShippingCode.value && showWithoutShippingCode.value) {
+      return hasOnlyNoShipping
+    }
+    
+    return true
+  })
+  
   // Sort sub-groups within each management group: no-shipping first, then by shipping code
-  sortedGroups.forEach(group => {
+  filteredGroups.forEach(group => {
     const sortedSubGroups = new Map<string, ExtendedOrder[]>()
     const subGroupEntries = Array.from(group.subGroups.entries()).sort(([keyA], [keyB]) => {
       // 'no-shipping' groups come first
@@ -543,7 +590,7 @@ const groupedOrdersByManagement = computed(() => {
     group.subGroups = sortedSubGroups
   })
   
-  return sortedGroups
+  return filteredGroups
 })
 
 // Computed - Get unique customer names from available orders
@@ -875,9 +922,18 @@ const handleAddOrders = async () => {
 // Remove order from group (clear management code and shipping code, set status to NHAN_DON)
 const handleRemoveOrderFromGroup = async (order: ExtendedOrder) => {
   try {
+    // Determine the action based on whether the order has a shipping code
+    const hasShippingCode = order.shippingCode && order.shippingCode !== ''
+    
+    const confirmMessage = hasShippingCode
+      ? `Bạn có chắc chắn muốn xóa mã vận đơn "${order.shippingCode}" khỏi đơn hàng "${order.customerName}"?`
+      : `Bạn có chắc chắn muốn xóa đơn hàng "${order.customerName}" khỏi nhóm này?`
+    
+    const confirmTitle = hasShippingCode ? 'Xác nhận xóa mã vận đơn' : 'Xác nhận xóa khỏi nhóm'
+    
     await ElMessageBox.confirm(
-      `Bạn có chắc chắn muốn xóa đơn hàng "${order.customerName}" khỏi nhóm này?`,
-      'Xác nhận xóa',
+      confirmMessage,
+      confirmTitle,
       {
         confirmButtonText: 'Xóa',
         cancelButtonText: 'Hủy',
@@ -887,17 +943,29 @@ const handleRemoveOrderFromGroup = async (order: ExtendedOrder) => {
     
     updating.value = true
     
-    // Update order: clear management code, shipping code, and set status to NHAN_DON
-    await store.updateOrderWithShipping(
-      order.rowIndex,
-      '', // Clear management code
-      '', // Clear shipping code
-      ORDER_STATUSES.SALES.NHAN_DON,
-      props.selectedDate,
-      order.sheetType as 'customer' | 'ctv'
-    )
-    
-    ElMessage.success('Đã xóa đơn hàng khỏi nhóm')
+    if (hasShippingCode) {
+      // Case: Has shipping code - only remove shipping code, keep management code
+      await store.updateOrderWithShipping(
+        order.rowIndex,
+        order.managementCode || '', // Keep management code
+        '', // Clear shipping code
+        ORDER_STATUSES.SALES.DA_DAT_HANG, // Keep status as DA_DAT_HANG
+        props.selectedDate,
+        order.sheetType as 'customer' | 'ctv'
+      )
+      ElMessage.success('Đã xóa mã vận đơn')
+    } else {
+      // Case: No shipping code - remove from group completely
+      await store.updateOrderWithShipping(
+        order.rowIndex,
+        '', // Clear management code
+        '', // Clear shipping code (already empty)
+        ORDER_STATUSES.SALES.NHAN_DON, // Set status back to NHAN_DON
+        props.selectedDate,
+        order.sheetType as 'customer' | 'ctv'
+      )
+      ElMessage.success('Đã xóa đơn hàng khỏi nhóm')
+    }
     
     // Refresh data
     await refreshData()
@@ -967,6 +1035,17 @@ onMounted(() => {
         
         .status-filter {
           margin-right: 16px;
+          
+          :deep(.el-checkbox) {
+            font-weight: 500;
+            color: #606266;
+          }
+        }
+        
+        .management-filter {
+          margin-right: 16px;
+          display: flex;
+          gap: 12px;
           
           :deep(.el-checkbox) {
             font-weight: 500;
@@ -1525,6 +1604,13 @@ onMounted(() => {
           .status-filter {
             margin-right: 0;
             margin-bottom: 12px;
+          }
+          
+          .management-filter {
+            margin-right: 0;
+            margin-bottom: 12px;
+            flex-direction: column;
+            gap: 8px;
           }
         }
       }
