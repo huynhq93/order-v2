@@ -174,6 +174,8 @@
               fit="cover"
               style="width: 60px; height: 60px; cursor: pointer"
               :preview-src-list="[row.productImage]"
+              :z-index="9999"
+              :preview-teleported="true"
             />
           </template>
         </el-table-column>
