@@ -85,6 +85,18 @@
                 </el-tag>
               </div>
             </div>
+            
+            <!-- Add Order to Management Group Button -->
+            <div class="management-actions">
+              <el-button
+                type="primary"
+                @click="openAddOrderModal(managementGroup.managementCode, 'no-shipping')"
+                :icon="Plus"
+                size="default"
+              >
+                Thêm đơn hàng
+              </el-button>
+            </div>
           </div>
 
           <!-- Shipping Code Sub-Groups -->
@@ -535,7 +547,12 @@ const groupedOrdersByManagement = computed(() => {
     }
     
     // Within same priority, sort by management code
-    // All groups have management code now (no 'no-mgmt' groups)
+    // For groups without shipping code (priority 1), sort descending (newest first)
+    if (priorityA === 1) {
+      return (b.managementCode || '').localeCompare(a.managementCode || '')
+    }
+    
+    // For other groups, sort ascending
     return (a.managementCode || '').localeCompare(b.managementCode || '')
   })
   
@@ -974,7 +991,7 @@ const handleRemoveOrderFromGroup = async (order: ExtendedOrder) => {
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Error removing order from group:', error)
-      ElMessage.error('Có lỗi xảy ra khi xóa đơn hàng')
+      ElMessage.error('Có lỗi xảy ra khi xóa')
     }
   } finally {
     updating.value = false
@@ -1069,6 +1086,9 @@ onMounted(() => {
         padding: 24px;
         border-bottom: 2px solid var(--mgmt-color, #e4e7ed);
         position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
         
         &::before {
           content: '';
@@ -1081,6 +1101,8 @@ onMounted(() => {
         }
         
         .management-info {
+          flex: 1;
+          
           .management-title {
             display: flex;
             align-items: center;
@@ -1134,6 +1156,21 @@ onMounted(() => {
               .el-icon {
                 font-size: 14px;
               }
+            }
+          }
+        }
+        
+        .management-actions {
+          flex-shrink: 0;
+          margin-left: 16px;
+          
+          .el-button {
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+            
+            &:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
             }
           }
         }
@@ -1622,6 +1659,9 @@ onMounted(() => {
         
         .management-header {
           padding: 16px;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 16px;
           
           .management-info {
             .management-title {
@@ -1638,6 +1678,14 @@ onMounted(() => {
               flex-direction: column;
               align-items: flex-start;
               gap: 8px;
+            }
+          }
+          
+          .management-actions {
+            margin-left: 0;
+            
+            .el-button {
+              width: 100%;
             }
           }
         }
