@@ -480,6 +480,7 @@ const onProductCodeSelect = async (selectedProductCode: string) => {
   if (selectedProduct && selectedProduct.data) {
     // Existing product - load its data
     form.value.productName = selectedProduct.data.productName
+    form.value.total = selectedProduct.data.total
     if (selectedProduct.data.productImage) {
       imagePreview.value = selectedProduct.data.productImage
       form.value.productImage = selectedProduct.data.productImage
@@ -600,6 +601,7 @@ const filterProducts = () => {
 const selectProductFromModal = (product: Product) => {
   form.value.productCode = product.productCode
   form.value.productName = product.productName
+  form.value.total = product.total
   if (product.productImage) {
     imagePreview.value = product.productImage
     form.value.productImage = product.productImage

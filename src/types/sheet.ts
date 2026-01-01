@@ -19,4 +19,5 @@ export interface Product {
   productImage: string
   productName: string
   month: string
+  total: string
 }
