@@ -91,36 +91,23 @@
           </el-row>
 
           <el-row :gutter="20">
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="Tháng" required>
-                <el-select
-                  v-model="billForm.months"
-                  multiple
-                  placeholder="Chọn tháng"
+            <el-col :xs="24" :sm="24">
+              <el-form-item label="Time" required>
+                <el-date-picker
+                  v-model="billForm.monthRange"
+                  type="monthrange"
+                  range-separator="Đến"
+                  start-placeholder="Từ tháng/năm"
+                  end-placeholder="Đến tháng/năm"
+                  format="MM/YYYY"
+                  value-format="YYYY-MM"
                   style="width: 100%"
-                  collapse-tags
-                  collapse-tags-tooltip
-                >
-                  <el-option
-                    v-for="month in monthOptions"
-                    :key="month.value"
-                    :label="month.label"
-                    :value="month.value"
-                  />
-                </el-select>
-              </el-form-item>
-            </el-col>
-
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="Năm" required>
-                <el-select v-model="billForm.year" placeholder="Chọn năm" style="width: 100%">
-                  <el-option v-for="year in yearOptions" :key="year" :label="year" :value="year" />
-                </el-select>
+                />
               </el-form-item>
             </el-col>
           </el-row>
 
-          <el-row :gutter="20">
+          <!-- <el-row :gutter="20">
             <el-col :xs="24" :sm="12">
               <el-form-item label="Phí ship" required>
                 <el-input-number 
@@ -134,7 +121,7 @@
                 />
               </el-form-item>
             </el-col>
-          </el-row>
+          </el-row> -->
 
           <el-form-item>
             <div class="button-container">
@@ -192,10 +179,10 @@
 
           <!-- Summary Info -->
           <div class="summary-info">
-            <div class="summary-item shipping">
+            <!-- <div class="summary-item shipping">
               <span class="label">Phí Ship</span>
               <span class="value">{{ formatCurrency(totalShipping) }}</span>
-            </div>
+            </div> -->
             <div class="summary-item total">
               <span class="label">Tổng thanh toán</span>
               <span class="value">{{ formatCurrency(totalAmount) }}</span>
@@ -481,38 +468,54 @@ import { Delete, Search, Loading } from '@element-plus/icons-vue'
 import NavigationMenu from '@/components/NavigationMenu.vue'
 import { useOrdersStore } from '@/stores/orders'
 import type { Order } from '@/types/order'
-import { ORDER_STATUSES, getOrderStatusType } from '@/constants/orderStatus'
+import { ORDER_STATUSES } from '@/constants/orderStatus'
 
 const ordersStore = useOrdersStore()
 
 // Form data
+const currentDate = new Date()
+const currentMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
 const billForm = ref({
   customerName: '',
   customerType: 'customer' as 'customer' | 'ctv',
-  months: [] as number[],
-  year: new Date().getFullYear(),
+  monthRange: [currentMonth, currentMonth] as string[],
   shippingFee: 0,
 })
 
-// Options
-const monthOptions = [
-  { value: 1, label: 'Tháng 1' },
-  { value: 2, label: 'Tháng 2' },
-  { value: 3, label: 'Tháng 3' },
-  { value: 4, label: 'Tháng 4' },
-  { value: 5, label: 'Tháng 5' },
-  { value: 6, label: 'Tháng 6' },
-  { value: 7, label: 'Tháng 7' },
-  { value: 8, label: 'Tháng 8' },
-  { value: 9, label: 'Tháng 9' },
-  { value: 10, label: 'Tháng 10' },
-  { value: 11, label: 'Tháng 11' },
-  { value: 12, label: 'Tháng 12' },
-]
-
-const yearOptions = computed(() => {
-  const currentYear = new Date().getFullYear()
-  return Array.from({ length: 5 }, (_, i) => currentYear - 2 + i)
+// Computed: Generate list of months/years in range
+const selectedMonthYearRange = computed(() => {
+  const months: Array<{ month: number; year: number }> = []
+  
+  if (!billForm.value.monthRange || billForm.value.monthRange.length !== 2) {
+    return months
+  }
+  
+  const [startStr, endStr] = billForm.value.monthRange
+  if (!startStr || !endStr) {
+    return months
+  }
+  
+  // Parse YYYY-MM format
+  const [startYear, startMonth] = startStr.split('-').map(Number)
+  const [endYear, endMonth] = endStr.split('-').map(Number)
+  
+  const start = new Date(startYear, startMonth - 1, 1)
+  const end = new Date(endYear, endMonth - 1, 1)
+  
+  // Date picker already ensures start <= end, but just in case
+  const actualStart = start <= end ? start : end
+  const actualEnd = start <= end ? end : start
+  
+  const current = new Date(actualStart)
+  while (current <= actualEnd) {
+    months.push({
+      month: current.getMonth() + 1,
+      year: current.getFullYear()
+    })
+    current.setMonth(current.getMonth() + 1)
+  }
+  
+  return months
 })
 
 // State
@@ -561,7 +564,12 @@ const imageModalWidth = computed(() => {
 // Computed
 const canGenerate = computed(() => {
   return (
-    billForm.value.customerName.trim() && billForm.value.months.length > 0 && billForm.value.year
+    billForm.value.customerName.trim() && 
+    billForm.value.monthRange &&
+    billForm.value.monthRange.length === 2 &&
+    billForm.value.monthRange[0] &&
+    billForm.value.monthRange[1] &&
+    selectedMonthYearRange.value.length > 0
   )
 })
 
@@ -599,10 +607,10 @@ const generateBill = async () => {
   try {
     const allOrders: Order[] = []
 
-    // Fetch orders for each selected month
-    for (const month of billForm.value.months) {
+    // Fetch orders for each selected month/year in range
+    for (const { month, year } of selectedMonthYearRange.value) {
       await ordersStore.fetchOrders(
-        { month, year: billForm.value.year },
+        { month, year },
         billForm.value.customerType,
       )
 
@@ -624,7 +632,7 @@ const generateBill = async () => {
       const ordersWithMetadata = customerOrders.map(order => ({
         ...order,
         monthForUpdate: month,
-        yearForUpdate: billForm.value.year
+        yearForUpdate: year
       }))
 
       allOrders.push(...ordersWithMetadata)
@@ -649,11 +657,12 @@ const generateBill = async () => {
 }
 
 const resetForm = () => {
+  const currentDate = new Date()
+  const currentMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
   billForm.value = {
     customerName: '',
     customerType: 'customer',
-    months: [],
-    year: new Date().getFullYear(),
+    monthRange: [currentMonth, currentMonth],
     shippingFee: 0,
   }
   billData.value = []
@@ -810,10 +819,14 @@ const openCustomerSearchModal = async () => {
 const loadAvailableCustomers = async () => {
   const customerMap = new Map<string, { nhanDon: number, daDatHang: number, hangVe: number, dangChoGiao: number }>()
   
-  // Fetch orders for each selected month and customer type
-  for (const month of billForm.value.months.length > 0 ? billForm.value.months : [new Date().getMonth() + 1]) {
+  // Fetch orders for each selected month/year in range
+  const monthYearRange = selectedMonthYearRange.value.length > 0 
+    ? selectedMonthYearRange.value 
+    : [{ month: new Date().getMonth() + 1, year: new Date().getFullYear() }]
+  
+  for (const { month, year } of monthYearRange) {
     await ordersStore.fetchOrders(
-      { month, year: billForm.value.year },
+      { month, year },
       billForm.value.customerType,
     )
     
@@ -884,9 +897,13 @@ const showCustomerOrders = async (customerName: string, status: string) => {
   // Collect orders for this customer with the specified status
   const orders: Order[] = []
   
-  for (const month of billForm.value.months.length > 0 ? billForm.value.months : [new Date().getMonth() + 1]) {
+  const monthYearRange = selectedMonthYearRange.value.length > 0 
+    ? selectedMonthYearRange.value 
+    : [{ month: new Date().getMonth() + 1, year: new Date().getFullYear() }]
+  
+  for (const { month, year } of monthYearRange) {
     await ordersStore.fetchOrders(
-      { month, year: billForm.value.year },
+      { month, year },
       billForm.value.customerType,
     )
     
