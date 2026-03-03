@@ -47,10 +47,10 @@
               style="height: 70px"
             >
               <div style="display: flex; align-items: center; gap: 12px">
-                <img 
-                  v-if="bill.imageUrl" 
-                  :src="bill.imageUrl" 
-                  style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px" 
+                <img
+                  v-if="bill.imageUrl"
+                  :src="bill.imageUrl"
+                  style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px"
                   alt="Bill"
                 />
                 <div style="flex: 1">
@@ -112,7 +112,8 @@
               <div style="margin-top: 8px">
                 Tổng số lượng đơn hàng đã chọn: <strong>{{ selectedOrdersQuantity }}</strong>
                 <br />
-                Số lượng của Bill {{ selectedBillCode }}: <strong>{{ selectedBill?.quantity }}</strong>
+                Số lượng của Bill {{ selectedBillCode }}:
+                <strong>{{ selectedBill?.quantity }}</strong>
                 <br />
                 <span style="color: #e6a23c">
                   Vui lòng kiểm tra lại để tránh chọn sai đơn hàng!
@@ -153,7 +154,7 @@
       <h2>Danh Sách Orders "HÀNG VIỆT"</h2>
 
       <el-table
-        :data="orders"
+        :data="displayOrders"
         border
         stripe
         style="width: 100%"
@@ -230,6 +231,10 @@
       <div v-if="orders.length === 0 && !loading" class="empty-state">
         <p>Không có đơn hàng "HÀNG VIỆT" nào</p>
         <p style="color: #909399; font-size: 14px">Vui lòng chọn tháng và tải đơn hàng</p>
+      </div>
+      <div v-else-if="selectedBillCode && displayOrders.length === 0 && !loading" class="empty-state">
+        <p>Không có đơn hàng nào thuộc bill {{ selectedBillCode }}</p>
+        <p style="color: #909399; font-size: 14px">Chọn bill khác hoặc tải thêm đơn hàng</p>
       </div>
     </el-card>
   </div>
@@ -334,6 +339,13 @@ function handleSelectionChange(selection: HangVietOrder[]) {
   selectedOrders.value = selection
 }
 
+// Khi chọn bill: chỉ hiển thị đơn có orderCode = mã bill (filter client-side)
+const displayOrders = computed(() => {
+  if (!selectedBillCode.value) return orders.value
+  const code = selectedBillCode.value.trim()
+  return orders.value.filter((o) => (o.orderCode || '').trim() === code)
+})
+
 // Check if row is selectable (only if bill is selected)
 function isSelectable() {
   return !!selectedBillCode.value
@@ -428,7 +440,7 @@ onMounted(() => {
   const now = new Date()
   const currentMonth = `${now.getMonth() + 1}_${now.getFullYear()}`
   selectedMonths.value = [currentMonth]
-  
+
   // Auto load orders
   loadOrders()
 })
@@ -772,8 +784,7 @@ onMounted(() => {
 
   /* Hide less critical columns on very small screens */
   :deep(.el-table__column:nth-child(9)),  /* Nguồn column */
-  :deep(.el-table__column:nth-child(10))  /* Tháng column */
-  {
+  :deep(.el-table__column:nth-child(10))  /* Tháng column */ {
     display: none;
   }
 

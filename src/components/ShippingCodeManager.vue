@@ -494,7 +494,7 @@ const groupedOrdersByManagement = computed(() => {
     const managementCode = order.managementCode || null
     
     // Skip orders without management code - they should not appear on this page
-    if (!managementCode) {
+    if (!managementCode || managementCode.startsWith('ODV')) {
       return
     }
     

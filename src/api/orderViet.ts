@@ -58,6 +58,7 @@ export interface HangVietOrder {
   linkFb: string
   contactInfo: string
   note: string
+  orderCode?: string // Mã đặt hàng (mã bill)
   month: string
   sheetType: string
 }
@@ -109,7 +110,19 @@ export const getHangVietOrders = async (months: string[]): Promise<HangVietOrder
   return response.data.data || []
 }
 
-// Process orders: update status to "HÀNG VỀ" and add bill code
+// Chỉ gán Mã đặt hàng = billCode (không đổi status) - dùng khi add đơn vào bill ở Admin
+export const assignOrderCodeToOrders = async (
+  orders: OrderProcessData[],
+  billCode: string,
+): Promise<ApiResponse<unknown>> => {
+  const response = await api.post(`/sheets/ordviet/assign-order-code`, {
+    orders,
+    billCode,
+  })
+  return response.data
+}
+
+// Process orders: đổi status "HÀNG VỀ" + gán bill code + cập nhật bill HOÀN THÀNH - dùng ở trang Xử Lý Hàng Việt
 export const processHangVietOrders = async (
   orders: OrderProcessData[],
   billCode: string,

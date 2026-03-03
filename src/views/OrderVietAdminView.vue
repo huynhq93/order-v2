@@ -85,6 +85,64 @@
           />
         </el-form-item>
 
+        <!-- Chọn đơn hàng thêm vào bill (chỉ khi tạo bill mới) -->
+        <template v-if="!editingBill">
+          <el-divider content-position="left">Đơn hàng thêm vào bill</el-divider>
+          <el-form-item label="Đơn hàng (đã đặt, chưa có mã)">
+            <div class="eligible-orders-toolbar">
+              <el-button
+                type="primary"
+                plain
+                size="small"
+                :loading="loadingEligibleOrders"
+                @click="loadEligibleOrders"
+              >
+                Tải đơn hàng có thể thêm
+              </el-button>
+              <span v-if="displayEligibleOrders.length > 0" class="eligible-count">
+                {{ displayEligibleOrders.length }} đơn (chưa có mã) · Đã chọn {{ selectedOrdersToAdd.length }}
+              </span>
+            </div>
+            <el-table
+              v-if="displayEligibleOrders.length > 0"
+              :data="displayEligibleOrders"
+              border
+              stripe
+              max-height="280"
+              class="eligible-orders-table"
+              @selection-change="handleEligibleOrderSelectionChange"
+            >
+              <el-table-column type="selection" width="40" :reserve-selection="false" />
+              <el-table-column label="Hình ảnh" width="80" align="center">
+                <template #default="{ row }">
+                  <el-image
+                    v-if="row.productImage"
+                    :src="row.productImage"
+                    fit="cover"
+                    style="width: 48px; height: 48px; border-radius: 6px"
+                    :preview-src-list="[row.productImage]"
+                  />
+                  <span v-else class="no-image">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="customerName" label="Khách" min-width="120" />
+              <el-table-column prop="productName" label="Sản phẩm" min-width="140" />
+              <el-table-column prop="color" label="Màu" width="80" />
+              <el-table-column prop="size" label="Size" width="60" />
+              <el-table-column prop="quantity" label="SL" width="60" />
+              <el-table-column prop="total" label="Tổng" width="90">
+                <template #default="{ row }">
+                  {{ formatCurrency(row.total) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="month" label="Tháng" width="80" />
+            </el-table>
+            <p v-else-if="loadedEligibleOnce && !loadingEligibleOrders" class="eligible-empty">
+              Không có đơn nào (trạng thái Đã đặt hàng, chưa có Mã đặt hàng) trong tháng đã chọn.
+            </p>
+          </el-form-item>
+        </template>
+
         <el-form-item>
           <el-button type="primary" @click="saveBill" :loading="saving">
             {{ editingBill ? 'Cập Nhật' : 'Tạo Bill' }}
@@ -151,7 +209,10 @@ import {
   getOrderVietBills,
   createOrderVietBill,
   updateOrderVietBill,
+  getHangVietOrders,
+  assignOrderCodeToOrders,
   type OrderVietBill,
+  type HangVietOrder,
 } from '@/api/orderViet'
 
 // State
@@ -164,6 +225,12 @@ const editingBill = ref<OrderVietBill | null>(null)
 const imageInput = ref<HTMLInputElement>()
 const imagePreview = ref('')
 const file = ref<File | undefined>(undefined)
+
+// Đơn hàng có thể thêm vào bill (đã đặt hàng, chưa có Mã đặt hàng)
+const eligibleOrders = ref<HangVietOrder[]>([])
+const selectedOrdersToAdd = ref<HangVietOrder[]>([])
+const loadingEligibleOrders = ref(false)
+const loadedEligibleOnce = ref(false)
 
 // Form data
 const billForm = ref({
@@ -182,6 +249,37 @@ const currentMonth = computed(() => {
     year: parseInt(year),
   }
 })
+
+// Convert selectedMonth (YYYY-MM) to API format (M_YYYY)
+function getEligibleOrdersMonthParam(): string {
+  const [year, month] = selectedMonth.value.split('-')
+  return `${parseInt(month, 10)}_${year}`
+}
+
+// Filter client-side: chỉ hiển thị đơn chưa có Mã đặt hàng (orderCode)
+const displayEligibleOrders = computed(() => {
+  return eligibleOrders.value.filter((o) => !(o.orderCode || '').trim())
+})
+
+// Load đơn hàng: status = ĐÃ ĐẶT HÀNG (filter không có orderCode làm ở client)
+async function loadEligibleOrders() {
+  try {
+    loadingEligibleOrders.value = true
+    loadedEligibleOnce.value = true
+    const months = [getEligibleOrdersMonthParam()]
+    eligibleOrders.value = await getHangVietOrders(months)
+    selectedOrdersToAdd.value = []
+  } catch (error) {
+    console.error('Error loading eligible orders:', error)
+    ElMessage.error('Không thể tải danh sách đơn hàng')
+  } finally {
+    loadingEligibleOrders.value = false
+  }
+}
+
+function handleEligibleOrderSelectionChange(selection: HangVietOrder[]) {
+  selectedOrdersToAdd.value = selection
+}
 
 // Load bills for selected month
 async function loadBills() {
@@ -327,7 +425,7 @@ async function saveBill() {
       ElMessage.success('Cập nhật bill thành công!')
     } else {
       // Create new bill
-      await createOrderVietBill({
+      const createRes = await createOrderVietBill({
         imageUrl: imageUrl,
         status: billForm.value.status,
         quantity: String(billForm.value.quantity),
@@ -336,12 +434,29 @@ async function saveBill() {
         month,
         year,
       })
-      ElMessage.success('Tạo bill thành công!')
+      const newBillCode = createRes?.data?.billCode
+
+      // Chỉ gán Mã đặt hàng = mã bill (không đổi status; đổi status chỉ ở trang Xử Lý Hàng Việt)
+      if (newBillCode && selectedOrdersToAdd.value.length > 0) {
+        const orderData = selectedOrdersToAdd.value.map((order: HangVietOrder) => ({
+          rowIndex: order.rowIndex,
+          month: order.month,
+          sheetType: order.sheetType,
+        }))
+        await assignOrderCodeToOrders(orderData, newBillCode)
+        ElMessage.success(`Tạo bill thành công! Đã gán mã ${newBillCode} cho ${selectedOrdersToAdd.value.length} đơn hàng.`)
+      } else {
+        ElMessage.success('Tạo bill thành công!')
+      }
     }
 
     // Reset form and reload bills
     resetForm()
     await loadBills()
+    // Reload danh sách đơn có thể thêm (các đơn vừa gán mã sẽ không còn trong list)
+    if (loadedEligibleOnce.value) {
+      await loadEligibleOrders()
+    }
   } catch (error) {
     console.error('Error saving bill:', error)
     ElMessage.error('Có lỗi xảy ra khi lưu bill')
@@ -385,6 +500,7 @@ function resetForm() {
   editingBill.value = null
   imagePreview.value = ''
   file.value = undefined
+  selectedOrdersToAdd.value = []
   billForm.value = {
     imageUrl: '',
     status: 'ĐANG VẬN CHUYỂN',
@@ -519,6 +635,33 @@ onMounted(() => {
 
 .upload-btn {
   flex-shrink: 0;
+}
+
+.eligible-orders-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.eligible-count {
+  font-size: 13px;
+  color: #606266;
+}
+
+.eligible-orders-table {
+  margin-top: 8px;
+}
+
+.eligible-empty {
+  color: #909399;
+  font-size: 13px;
+  margin: 8px 0 0 0;
+}
+
+.eligible-orders-table .no-image {
+  color: #c0c4cc;
+  font-size: 14px;
 }
 
 .table-card h2 {
