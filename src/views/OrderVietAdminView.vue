@@ -6,16 +6,25 @@
     <el-card class="header-card">
       <h1>Quản Lý Bill Hàng Việt (Admin)</h1>
 
-      <!-- Month/Year Selector -->
+      <!-- Month/Year Selector (nhiều tháng: bills + đơn hàng có thể từ nhiều tháng) -->
       <div class="month-selector">
-        <el-date-picker
-          v-model="selectedMonth"
-          type="month"
-          placeholder="Chọn tháng"
-          format="MM/YYYY"
-          value-format="YYYY-MM"
+        <el-select
+          v-model="selectedMonths"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          placeholder="Chọn các tháng cần xem"
+          style="width: 300px"
           @change="loadBills"
-        />
+        >
+          <el-option
+            v-for="month in availableMonths"
+            :key="month.value"
+            :label="month.label"
+            :value="month.value"
+          />
+        </el-select>
+        <el-button type="primary" @click="loadBills">Tải Bills</el-button>
       </div>
     </el-card>
 
@@ -108,7 +117,7 @@
               :data="displayEligibleOrders"
               border
               stripe
-              max-height="280"
+              max-height="600"
               class="eligible-orders-table"
               @selection-change="handleEligibleOrderSelectionChange"
             >
@@ -216,7 +225,7 @@ import {
 } from '@/api/orderViet'
 
 // State
-const selectedMonth = ref(new Date().toISOString().substring(0, 7)) // YYYY-MM format
+const selectedMonths = ref<string[]>([])
 const bills = ref<OrderVietBill[]>([])
 const loading = ref(false)
 const saving = ref(false)
@@ -241,33 +250,45 @@ const billForm = ref({
   note: '',
 })
 
-// Parse month/year from selectedMonth
-const currentMonth = computed(() => {
-  const [year, month] = selectedMonth.value.split('-')
-  return {
-    month: parseInt(month),
-    year: parseInt(year),
+// Danh sách tháng có thể chọn (6 tháng gần nhất)
+const availableMonths = computed(() => {
+  const months: { value: string; label: string }[] = []
+  const now = new Date()
+  for (let i = 0; i < 6; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const month = date.getMonth() + 1
+    const year = date.getFullYear()
+    months.push({
+      value: `${month}_${year}`,
+      label: `Tháng ${month}/${year}`,
+    })
   }
+  return months
 })
 
-// Convert selectedMonth (YYYY-MM) to API format (M_YYYY)
-function getEligibleOrdersMonthParam(): string {
-  const [year, month] = selectedMonth.value.split('-')
-  return `${parseInt(month, 10)}_${year}`
-}
+// Tháng dùng khi tạo bill mới (lấy tháng đầu trong danh sách đã chọn)
+const currentMonth = computed(() => {
+  const first = selectedMonths.value[0]
+  if (!first) return { month: new Date().getMonth() + 1, year: new Date().getFullYear() }
+  const [month, year] = first.split('_')
+  return { month: parseInt(month, 10), year: parseInt(year, 10) }
+})
 
 // Filter client-side: chỉ hiển thị đơn chưa có Mã đặt hàng (orderCode)
 const displayEligibleOrders = computed(() => {
   return eligibleOrders.value.filter((o) => !(o.orderCode || '').trim())
 })
 
-// Load đơn hàng: status = ĐÃ ĐẶT HÀNG (filter không có orderCode làm ở client)
+// Load đơn hàng từ các tháng đã chọn (status = ĐÃ ĐẶT HÀNG; filter không có orderCode ở client)
 async function loadEligibleOrders() {
+  if (selectedMonths.value.length === 0) {
+    ElMessage.warning('Vui lòng chọn ít nhất 1 tháng')
+    return
+  }
   try {
     loadingEligibleOrders.value = true
     loadedEligibleOnce.value = true
-    const months = [getEligibleOrdersMonthParam()]
-    eligibleOrders.value = await getHangVietOrders(months)
+    eligibleOrders.value = await getHangVietOrders(selectedMonths.value)
     selectedOrdersToAdd.value = []
   } catch (error) {
     console.error('Error loading eligible orders:', error)
@@ -281,12 +302,21 @@ function handleEligibleOrderSelectionChange(selection: HangVietOrder[]) {
   selectedOrdersToAdd.value = selection
 }
 
-// Load bills for selected month
+// Load bills từ tất cả các tháng đã chọn
 async function loadBills() {
+  if (selectedMonths.value.length === 0) {
+    bills.value = []
+    return
+  }
   try {
     loading.value = true
-    const { month, year } = currentMonth.value
-    bills.value = await getOrderVietBills(month, year)
+    const allBills: OrderVietBill[] = []
+    for (const monthYear of selectedMonths.value) {
+      const [month, year] = monthYear.split('_')
+      const list = await getOrderVietBills(parseInt(month, 10), parseInt(year, 10))
+      allBills.push(...list)
+    }
+    bills.value = allBills
   } catch (error) {
     console.error('Error loading bills:', error)
     ElMessage.error('Không thể tải danh sách bills')
@@ -531,8 +561,11 @@ function formatCurrency(value: string | number) {
   return num.toLocaleString('vi-VN') + 'đ'
 }
 
-// On mounted
+// On mounted: mặc định chọn tháng hiện tại
 onMounted(() => {
+  const now = new Date()
+  const current = `${now.getMonth() + 1}_${now.getFullYear()}`
+  selectedMonths.value = [current]
   loadBills()
 })
 </script>
